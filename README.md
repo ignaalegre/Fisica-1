@@ -31,3 +31,10 @@ comparado con uno chico?
 
 Este proyecto te va a permitir ajustar modelos, visualizar efectos del aire, y aplicar
 conceptos clave de la dinámica y energía usando datos reales.
+
+#TODO
+#Usar pandas para guardar los dataframes
+
+# 6 graficos, uno para x e y de aceleracion, velocidad, y posicion
+
+# Guardar tiempo, posicion x y posicion y en una lista ternaria, y de ahi hacer los calculos
