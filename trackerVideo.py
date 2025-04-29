@@ -21,6 +21,9 @@ if not ok:
     print("No se pudo leer el video")
     exit()
 
+# FLipeo el video
+frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+
 # Seleccioná el ROI (Región de Interés)
 bbox = cv2.selectROI("Tracking", frame, False)
 tracker = cv2.TrackerCSRT.create()  # También podés usar KCF, MIL, etc.
@@ -34,13 +37,16 @@ first_tracked_frame = None
 last_tracked_bbox = None
 prev_center = None
 desplazamientos_pixeles = []
-
+desplazamientos_ternarios = []
 
 while True:
     ok, frame = video.read()
     if not ok:
         break
+    # FLipeo el video
+    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
     frame_count += 1
+
     # Actualizá el tracker
     ok, bbox = tracker.update(frame)
     if ok:
@@ -57,6 +63,8 @@ while True:
             # Calculá la velocidad instantánea
             # Multiplicá por el fps para obtener la velocidad en px/s
             desplazamientos_pixeles.append(desplazamiento_pixeles)
+            # Guardar los datos en la lista ternaria
+            desplazamientos_ternarios.append((dx, dy, desplazamiento_pixeles))
         prev_center = center
 
     # Dibujá el bounding box
@@ -84,10 +92,14 @@ if last_tracked_bbox:
 else:
     print("No se logró trackear ningún frame exitosamente.")
 
-
-if desplazamientos_pixeles:
-    desplazamiento_total_px = sum(desplazamientos_pixeles)
-    factor_px_a_m = altura_caida / desplazamiento_total_px
+# Calculo desplazamientos usando la lista ternaria
+if desplazamientos_ternarios:
+    # Calcular el desplazamiento total en el eje Y
+    desplazamiento_total_y_px = sum(abs(dy)
+                                    for _, dy, _ in desplazamientos_ternarios)
+    factor_px_a_m = altura_caida / desplazamiento_total_y_px
+    print(f"Desplazamiento total en píxeles (Y): {desplazamiento_total_y_px}")
+    print(f"Factor de conversión (px a m): {factor_px_a_m}")
 else:
     factor_px_a_m = None
     print("No hay desplazamientos para calcular factor de conversión.")
@@ -96,7 +108,9 @@ else:
 if centros and factor_px_a_m is not None:
     df_centros = pd.DataFrame(centros)
     df_centros['X_metros'] = df_centros['X'] * factor_px_a_m
-    df_centros['Y_metros'] = df_centros['Y'] * factor_px_a_m
+    # Ajustar Y para que comience en altura máxima
+    df_centros['Y_metros'] = (altura_caida + 2) - \
+        (df_centros['Y'] * factor_px_a_m)
     df_centros[['Frame', 'X_metros', 'Y_metros']].to_csv(
         'trayectoria_objeto_metros.csv', index=False)
     print("Archivo 'trayectoria_objeto_metros.csv' generado exitosamente.")
@@ -122,53 +136,91 @@ else:
     print("No se pudo calcular la velocidad porque no se detectó ningún tracking exitoso.")
 
 # --- Conversión de velocidad instantánea a m/s ---
-if desplazamientos_pixeles:
-    desplazamiento_total_px = sum(desplazamientos_pixeles)
-    factor_px_a_m = altura_caida / desplazamiento_total_px
-    print(f"\n--- Velocidades instantáneas ---")
-    velocidades_m_s = []
-    for i, d_px in enumerate(desplazamientos_pixeles):
-        velocidad_instantanea_pixeles = d_px * fps
-        v_m_s = d_px * fps * factor_px_a_m
-        velocidades_m_s.append(v_m_s)
-        print(f"Frame {i + first_tracked_frame + 1}: {v_m_s:.2f} m/s" " o " +
-              f"{velocidad_instantanea_pixeles:.2f} px/s")
-    # --- NUEVO: Cálculo de aceleraciones instantáneas ---
-    print(f"\n--- Aceleraciones instantáneas ---")
-    aceleraciones_m_s2 = []
-    for i in range(1, len(velocidades_m_s)):
-        delta_v = velocidades_m_s[i] - velocidades_m_s[i-1]
-        delta_t = 1 / fps
-        aceleracion = delta_v / delta_t
-        aceleraciones_m_s2.append(aceleracion)
-        print(f"Frame {i + first_tracked_frame + 1}: {aceleracion:.2f} m/s²")
+if desplazamientos_ternarios:
+    print(f"\n--- Cálculos para gráficos ---")
 
-    if aceleraciones_m_s2:
-        aceleracion_promedio = np.mean(aceleraciones_m_s2)
-        print(f"\nAceleración promedio: {aceleracion_promedio:.2f} m/s²")
+    # Inicializar listas para velocidades y aceleraciones en x e y
+    velocidades_x_m_s = []
+    velocidades_y_m_s = []
+    aceleraciones_x_m_s2 = []
+    aceleraciones_y_m_s2 = []
 
-    # --- NUEVO: Gráficos de velocidad y aceleración ---
+    # Calcular velocidades en x e y
+    for dx, dy, desplazamiento_pixeles in desplazamientos_ternarios:
+        v_x_m_s = dx * fps * factor_px_a_m
+        v_y_m_s = dy * fps * factor_px_a_m
+        velocidades_x_m_s.append(v_x_m_s)
+        velocidades_y_m_s.append(v_y_m_s)
+
+    # Calcular aceleraciones en x e y
+    for i in range(1, len(velocidades_x_m_s)):
+        a_x_m_s2 = (velocidades_x_m_s[i] -
+                    velocidades_x_m_s[i - 1]) / (1 / fps)
+        a_y_m_s2 = (velocidades_y_m_s[i] -
+                    velocidades_y_m_s[i - 1]) / (1 / fps)
+        aceleraciones_x_m_s2.append(a_x_m_s2)
+        aceleraciones_y_m_s2.append(a_y_m_s2)
+
+    # Crear tiempos para los gráficos
     tiempos = np.arange(first_tracked_frame + 1,
-                        first_tracked_frame + 1 + len(velocidades_m_s)) / fps
-    plt.figure(figsize=(12, 6))
+                        first_tracked_frame + 1 + len(velocidades_x_m_s)) / fps
+    # Ajustar longitud para aceleraciones
+    tiempos_aceleraciones = tiempos[:len(aceleraciones_x_m_s2)]
 
-    plt.subplot(2, 1, 1)
-    plt.plot(tiempos, velocidades_m_s, marker='o')
-    plt.title('Velocidad vs Tiempo')
+    # Graficar posición, velocidad y aceleración en x e y
+    plt.figure(figsize=(12, 18))
+
+    # Posición
+    plt.subplot(3, 2, 1)
+    plt.plot(tiempos[:len(centros)], [
+             c['X'] * factor_px_a_m for c in centros[:len(tiempos)]], marker='o')
+    plt.title('Posición en X vs Tiempo')
     plt.xlabel('Tiempo (s)')
-    plt.ylabel('Velocidad (m/s)')
+    plt.ylabel('Posición X (m)')
     plt.grid()
 
-    tiempos_aceleraciones = tiempos[1:]
-    plt.subplot(2, 1, 2)
-    plt.plot(tiempos_aceleraciones, aceleraciones_m_s2, marker='o', color='r')
-    plt.title('Aceleración vs Tiempo')
+    plt.subplot(3, 2, 2)
+    plt.plot(tiempos[:len(centros)], [(altura_caida + 2) - (c['Y'] * factor_px_a_m)
+             for c in centros[:len(tiempos)]], marker='o', color='r')
+    plt.title('Posición en Y vs Tiempo')
     plt.xlabel('Tiempo (s)')
-    plt.ylabel('Aceleración (m/s²)')
+    plt.ylabel('Altura (m)')
+    plt.grid()
+
+    # Velocidad
+    plt.subplot(3, 2, 3)
+    plt.plot(tiempos, velocidades_x_m_s, marker='o')
+    plt.title('Velocidad en X vs Tiempo')
+    plt.xlabel('Tiempo (s)')
+    plt.ylabel('Velocidad X (m/s)')
+    plt.grid()
+
+    plt.subplot(3, 2, 4)
+    plt.plot(tiempos, velocidades_y_m_s, marker='o', color='r')
+    plt.title('Velocidad en Y vs Tiempo')
+    plt.xlabel('Tiempo (s)')
+    plt.ylabel('Velocidad Y (m/s)')
+    plt.grid()
+
+    # Aceleración
+    plt.subplot(3, 2, 5)
+    plt.plot(tiempos_aceleraciones, aceleraciones_x_m_s2, marker='o')
+    plt.title('Aceleración en X vs Tiempo')
+    plt.xlabel('Tiempo (s)')
+    plt.ylabel('Aceleración X (m/s²)')
+    plt.grid()
+
+    plt.subplot(3, 2, 6)
+    plt.plot(tiempos_aceleraciones, aceleraciones_y_m_s2, marker='o', color='r')
+    plt.title('Aceleración en Y vs Tiempo')
+    plt.xlabel('Tiempo (s)')
+    plt.ylabel('Aceleración Y (m/s²)')
     plt.grid()
 
     plt.tight_layout()
     plt.show()
+else:
+    print("No hay datos en la lista ternaria para calcular gráficos.")
 
 video.release()
 cv2.destroyAllWindows()
