@@ -207,8 +207,8 @@ def graficar_resultados(centros, desplazamientos_ternarios, factor_px_a_m, altur
 
 def main():
     # --- Parámetros dados ---
-    VIDEO_PATH = 'videos_recortados/sin_globo_r.mov'
-    ALTURA_CAIDA = 4.23  # en metros
+    VIDEO_PATH = 'oso_recortados/oso_sin_globo.mov'
+    ALTURA_CAIDA = 4.28  # en metros
     FPS = 60
 
     # --- Ejecución del flujo principal ---
