@@ -3,3 +3,6 @@ Aplicar filtro Savitzjy Golay
 Agregarle al mismo video, que muestre los vectores velocidad y aceleracion en tiempo real
 
 La velocidad debe ser negativa ya que el objeto esta bajando por el eje y
+
+Agregar recta que se ajusta a los puntos.
+
