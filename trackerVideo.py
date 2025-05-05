@@ -3,6 +3,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from scipy.signal import savgol_filter
 
 
 def inicializar_video(path):
@@ -38,6 +39,8 @@ def procesar_video(video, tracker):
     first_tracked_frame = None
     last_tracked_bbox = None
     prev_center = None
+    first_center = None
+    prev_velocity = None  # Para calcular la aceleración
 
     while True:
         ok, frame = video.read()
@@ -53,8 +56,17 @@ def procesar_video(video, tracker):
         if ok:
             (x, y, w, h) = [int(v) for v in bbox]
             center = (x + w // 2, y + h // 2)
+            # Establecer el primer centro como origen (0, 0)
+            if first_center is None:
+                first_center = center
+
+            # Ajustar las coordenadas del centro relativo al primer centro
+            adjusted_center = (
+                center[0] - first_center[0], center[1] - first_center[1])
             centros.append(
-                {'Frame': frame_count, 'X': center[0], 'Y': center[1]})
+                {'Frame': frame_count,
+                    'X': adjusted_center[0], 'Y': adjusted_center[1]}
+            )
 
             if prev_center is not None:
                 # Calculá el desplazamiento tomando como referencia el centro del bounding box
@@ -65,6 +77,31 @@ def procesar_video(video, tracker):
                 # Guardar desplazamientos
                 desplazamientos_pixeles.append(desplazamiento)
                 desplazamientos_ternarios.append((dx, dy, desplazamiento))
+
+                # Calcular velocidad
+                dt = 1 / 60  # FPS
+                velocity = (dx / dt, dy / dt)
+
+                # Dibujar vector de velocidad
+                velocity_scale = 0.1  # Escalar para que sea visible
+                velocity_end = (int(center[0] + velocity[0] * velocity_scale),
+                                int(center[1] + velocity[1] * velocity_scale))
+                cv2.arrowedLine(frame, center, velocity_end,
+                                (255, 0, 0), 2, tipLength=0.3)
+
+                # Calcular aceleración si hay una velocidad previa
+                if prev_velocity is not None:
+                    ax = (velocity[0] - prev_velocity[0]) / dt
+                    ay = (velocity[1] - prev_velocity[1]) / dt
+
+                    # Dibujar vector de aceleración
+                    acceleration_scale = 0.01  # Escalar para que sea visible
+                    acceleration_end = (int(center[0] + ax * acceleration_scale),
+                                        int(center[1] + ay * acceleration_scale))
+                    cv2.arrowedLine(frame, center, acceleration_end,
+                                    (0, 255, 0), 2, tipLength=0.3)
+
+                prev_velocity = velocity
 
             prev_center = center
 
@@ -82,6 +119,25 @@ def procesar_video(video, tracker):
         # Salí con la tecla ESC
         if cv2.waitKey(1) & 0xFF == 27:
             break
+
+    # Aplicar filtro Savitzky-Golay a los desplazamientos en píxeles
+    if len(desplazamientos_pixeles) > 5:  # Asegurarse de que haya suficientes datos
+        desplazamientos_pixeles = savgol_filter(
+            desplazamientos_pixeles, window_length=5, polyorder=2).tolist()
+
+    # Aplicar filtro Savitzky-Golay a las posiciones X e Y
+    if len(centros) > 5:
+        x_positions = [c['X'] for c in centros]
+        y_positions = [c['Y'] for c in centros]
+        x_positions_filtered = savgol_filter(
+            x_positions, window_length=7, polyorder=2).tolist()
+        y_positions_filtered = savgol_filter(
+            y_positions, window_length=7, polyorder=2).tolist()
+
+        # Actualizar las posiciones filtradas en la lista de centros
+        for i, c in enumerate(centros):
+            c['X'] = x_positions_filtered[i]
+            c['Y'] = y_positions_filtered[i]
 
     return centros, desplazamientos_ternarios, first_tracked_frame, frame_count, last_tracked_bbox
 
@@ -112,6 +168,33 @@ def guardar_csv(centros, factor_px_a_m, altura_caida):
     print("Archivo 'trayectoria_objeto_metros.csv' generado exitosamente.")
 
 
+def calcular_velocidades_aceleraciones(csv_path, fps):
+    # Leer el archivo CSV
+    df = pd.read_csv(csv_path)
+
+    # Calcular el intervalo de tiempo entre frames
+    dt = 1 / fps
+
+    # Calcular velocidades (diferencias entre posiciones consecutivas)
+    df['Velocidad_X'] = df['X_metros'].diff() / dt
+    df['Velocidad_Y'] = df['Y_metros'].diff() / dt
+
+    # Calcular aceleraciones (diferencias entre velocidades consecutivas)
+    df['Aceleracion_X'] = df['Velocidad_X'].diff() / dt
+    df['Aceleracion_Y'] = df['Velocidad_Y'].diff() / dt
+
+    # Llenar valores NaN generados por diff() con 0 (opcional)
+    df.fillna(0, inplace=True)
+
+    # Guardar el DataFrame actualizado en un nuevo archivo CSV
+    output_csv_path = 'trayectoria_objeto_completa.csv'
+    df.to_csv(output_csv_path, index=False)
+    print(
+        f"Archivo con velocidades y aceleraciones guardado en: {output_csv_path}")
+
+    return df
+
+
 def calcular_velocidad_promedio(altura_caida, first_frame, last_frame, fps):
     if first_frame is None:
         print(
@@ -128,74 +211,58 @@ def calcular_velocidad_promedio(altura_caida, first_frame, last_frame, fps):
     print(f"Velocidad promedio de caída: {velocidad:.3f} m/s")
 
 
-def graficar_resultados(centros, desplazamientos_ternarios, factor_px_a_m, altura_caida, first_frame, fps):
-    if not desplazamientos_ternarios:
-        print("No hay datos en la lista ternaria para calcular gráficos.")
-        return
+def graficar_resultados(csv_path, altura_caida):
+    # Leer el archivo CSV con los datos completos
+    df = pd.read_csv(csv_path)
 
-    print("\n--- Cálculos para gráficos ---")
-
-    velocidades_x = []
-    velocidades_y = []
-    aceleraciones_x = []
-    aceleraciones_y = []
-
-    for dx, dy, _ in desplazamientos_ternarios:
-        velocidades_x.append(dx * fps * factor_px_a_m)
-        velocidades_y.append(dy * fps * factor_px_a_m)
-
-    for i in range(1, len(velocidades_x)):
-        aceleraciones_x.append((velocidades_x[i] - velocidades_x[i-1]) * fps)
-        aceleraciones_y.append((velocidades_y[i] - velocidades_y[i-1]) * fps)
-
-    tiempos = np.arange(first_frame + 1, first_frame +
-                        1 + len(velocidades_x)) / fps
-    tiempos_aceleraciones = tiempos[:len(aceleraciones_x)]
+    # Crear el eje de tiempo basado en los frames
+    tiempos = df['Frame'] / 60
 
     plt.figure(figsize=(12, 18))
 
-    # Posición
+    # Posición en X
     plt.subplot(3, 2, 1)
-    plt.plot(tiempos[:len(centros)], [
-             c['X'] * factor_px_a_m for c in centros[:len(tiempos)]], marker='o')
+    plt.plot(tiempos, df['X_metros'], marker='o')
     plt.title('Posición en X vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Posición X (m)')
     plt.grid()
 
+    # Posición en Y
     plt.subplot(3, 2, 2)
-    plt.plot(tiempos[:len(centros)], [(altura_caida + 2) - (c['Y'] * factor_px_a_m)
-                                      for c in centros[:len(tiempos)]], marker='o', color='r')
+    plt.plot(tiempos, df['Y_metros'], marker='o', color='r')
     plt.title('Posición en Y vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Altura (m)')
     plt.grid()
 
-    # Velocidad
+    # Velocidad en X
     plt.subplot(3, 2, 3)
-    plt.plot(tiempos, velocidades_x, marker='o')
+    plt.plot(tiempos, df['Velocidad_X'], marker='o')
     plt.title('Velocidad en X vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Velocidad X (m/s)')
     plt.grid()
 
+    # Velocidad en Y
     plt.subplot(3, 2, 4)
-    plt.plot(tiempos, velocidades_y, marker='o', color='r')
+    plt.plot(tiempos, df['Velocidad_Y'], marker='o', color='r')
     plt.title('Velocidad en Y vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Velocidad Y (m/s)')
     plt.grid()
 
-    # Aceleración
+    # Aceleración en X
     plt.subplot(3, 2, 5)
-    plt.plot(tiempos_aceleraciones, aceleraciones_x, marker='o')
+    plt.plot(tiempos, df['Aceleracion_X'], marker='o')
     plt.title('Aceleración en X vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Aceleración X (m/s²)')
     plt.grid()
 
+    # Aceleración en Y
     plt.subplot(3, 2, 6)
-    plt.plot(tiempos_aceleraciones, aceleraciones_y, marker='o', color='r')
+    plt.plot(tiempos, df['Aceleracion_Y'], marker='o', color='r')
     plt.title('Aceleración en Y vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Aceleración Y (m/s²)')
@@ -229,8 +296,14 @@ def main():
     guardar_csv(centros, factor_px_a_m, ALTURA_CAIDA)
     calcular_velocidad_promedio(
         ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
-    graficar_resultados(centros, desplazamientos_ternarios,
-                        factor_px_a_m, ALTURA_CAIDA, first_tracked_frame, FPS)
+
+    # Calcular velocidades y aceleraciones desde el CSV
+    calcular_velocidades_aceleraciones('trayectoria_objeto_metros.csv', FPS)
+
+    calcular_velocidad_promedio(
+        ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
+
+    graficar_resultados('trayectoria_objeto_completa.csv', ALTURA_CAIDA)
 
     video.release()
     cv2.destroyAllWindows()

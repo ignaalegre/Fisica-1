@@ -1,8 +1,8 @@
-Aplicar filtro Savitzjy Golay
+[ x ] Aplicar filtro Savitzjy Golay
 
-Agregarle al mismo video, que muestre los vectores velocidad y aceleracion en tiempo real
+[más o menos] Agregarle al mismo video, que muestre los vectores velocidad y aceleracion en tiempo real
 
-La velocidad debe ser negativa ya que el objeto esta bajando por el eje y
+[ x ] La velocidad debe ser negativa ya que el objeto esta bajando por el eje y
 
-Agregar recta que se ajusta a los puntos.
+[ ] Agregar recta que se ajusta a los puntos.
 
