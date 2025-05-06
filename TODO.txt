@@ -6,3 +6,8 @@
 
 [ ] Agregar recta que se ajusta a los puntos.
 
+Para calcular velociadad, tomar 3 valores y promediar -> moving-average, en pandas ya esta. .rolling se llama el metodo 
+Uno de los argumentos es cuantos puntos quiere que use, si le damos 3 hace promedio de a 3.
+.mid para el promedio
+
+Agregar a la grafica la comparacion con el caso teorico, osea aplicando MRUV. Mas que nada para la posicion en Y.
