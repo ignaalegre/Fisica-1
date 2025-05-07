@@ -160,3 +160,5 @@ cython_debug/
 #.idea/
 .DS_Store
 trayectoria_objeto_metros.csv
+trayectoria_objeto_completa.csv
+trayectoria_objeto_metros.csv

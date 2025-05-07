@@ -1,13 +1,26 @@
-[ x ] Aplicar filtro Savitzjy Golay
+Cosas para hacer que nos recomendo el ayudante (tipazo Marcos):
 
-[más o menos] Agregarle al mismo video, que muestre los vectores velocidad y aceleracion en tiempo real
 
-[ x ] La velocidad debe ser negativa ya que el objeto esta bajando por el eje y
+[ ✅ ] La velocidad debe ser negativa ya que el objeto esta bajando por el eje y
 
-[ ] Agregar recta que se ajusta a los puntos.
+En calcular_velocidades_aceleraciones:
 
-Para calcular velociadad, tomar 3 valores y promediar -> moving-average, en pandas ya esta. .rolling se llama el metodo 
+    [ ⌛️ ] Aplicar filtro Savitzjy Golay 
+
+    [ ⌛️ ] Para calcular velociadad, tomar 3 valores y promediar -> moving-average, en pandas ya esta. .rolling se llama el metodo 
 Uno de los argumentos es cuantos puntos quiere que use, si le damos 3 hace promedio de a 3.
 .mid para el promedio
 
-Agregar a la grafica la comparacion con el caso teorico, osea aplicando MRUV. Mas que nada para la posicion en Y.
+[ 🚫 ]  Agregar a la grafica la comparacion con el caso teorico, osea aplicando MRUV. Mas que nada para la posicion en Y.
+
+[ ⌛️ ]  Hay que procesar los datos en base a lo guardado en el csv, en procesar_video no se debe aplicar ningun filtro, si en calcular_velocidades_aceleraciones
+Probar con los filtros, meter filtros en cada paso y despues probar con los distintos parametros de cada filtro como da mejor.
+O tambien probar sin los filtros a ver como da mejor
+
+[ 🚫 ] Despues, para que los vectores queden mejor, en vez de calcularlos en tiempo real en procesar_video, es mejor sacarlos del csv.
+Osea el video deberia mostrarse 2 veces, uno el primero donde se hace el trackeo, y despues mostrar el video con los vectores dibujados
+que dichos vectores se calcularon desde el trayectoria_objeto_completa.csv. Calculo habra que crear una funcion nueva
+que reciba como parametros el video, el csv de antes y de ahi lo pueda mostrar y dibujarle los vectores arriba
+
+[ 🚫 ] Y despues ver bien el tema para que el eje Y empieze en 4.28 y termine en 0
+
