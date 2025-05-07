@@ -163,6 +163,8 @@ def guardar_csv(centros, factor_px_a_m, altura_caida):
     df = pd.DataFrame(centros)
     df['X_metros'] = df['X'] * factor_px_a_m
     df['Y_metros'] = (altura_caida + 2) - (df['Y'] * factor_px_a_m)
+    df['X_metros'] = df['X_metros'].rolling(3, min_periods=1).mean()
+    df['Y_metros'] = df['Y_metros'].rolling(3, min_periods=1).mean()
     df[['Frame', 'X_metros', 'Y_metros']].to_csv(
         'trayectoria_objeto_metros.csv', index=False)
     print("Archivo 'trayectoria_objeto_metros.csv' generado exitosamente.")
@@ -178,10 +180,14 @@ def calcular_velocidades_aceleraciones(csv_path, fps):
     # Calcular velocidades (diferencias entre posiciones consecutivas)
     df['Velocidad_X'] = df['X_metros'].diff() / dt
     df['Velocidad_Y'] = df['Y_metros'].diff() / dt
+    df['Velocidad_X'] = df['Velocidad_X'].rolling(3, min_periods=1).mean()
+    df['Velocidad_Y'] = df['Velocidad_Y'].rolling(3, min_periods=1).mean()
 
     # Calcular aceleraciones (diferencias entre velocidades consecutivas)
     df['Aceleracion_X'] = df['Velocidad_X'].diff() / dt
     df['Aceleracion_Y'] = df['Velocidad_Y'].diff() / dt
+    df['Aceleracion_X'] = df['Aceleracion_X'].rolling(3, min_periods=1).mean()
+    df['Aceleracion_Y'] = df['Aceleracion_Y'].rolling(3, min_periods=1).mean()
 
     # Llenar valores NaN generados por diff() con 0 (opcional)
     df.fillna(0, inplace=True)
