@@ -8,8 +8,8 @@ En calcular_velocidades_aceleraciones:
     [ ⌛️ ] Aplicar filtro Savitzjy Golay 
 
     [ ⌛️ ] Para calcular velociadad, tomar 3 valores y promediar -> moving-average, en pandas ya esta. .rolling se llama el metodo 
-Uno de los argumentos es cuantos puntos quiere que use, si le damos 3 hace promedio de a 3.
-.mid para el promedio
+    Uno de los argumentos es cuantos puntos quiere que use, si le damos 3 hace promedio de a 3.
+    .mid para el promedio
 
 [ 🚫 ]  Agregar a la grafica la comparacion con el caso teorico, osea aplicando MRUV. Mas que nada para la posicion en Y.
 
@@ -24,3 +24,6 @@ que reciba como parametros el video, el csv de antes y de ahi lo pueda mostrar y
 
 [ 🚫 ] Y despues ver bien el tema para que el eje Y empieze en 4.28 y termine en 0
 
+[ 🚫 ] Calcular la aceleracion promedio de TODOS los valores de aceleracion obtenidos e imprimirlos x consola o guardarlos en algun lado.
+
+[ 🚫 ] Si tienen ganas dejar la GUI un poco mas linda. ✨
