@@ -5,13 +5,13 @@ Cosas para hacer que nos recomendo el ayudante (tipazo Marcos):
 
 En calcular_velocidades_aceleraciones:
 
-    [ ⌛️ ] Aplicar filtro Savitzjy Golay 
+    [ ✅ ] Aplicar filtro Savitzjy Golay 
 
-    [ ⌛️ ] Para calcular velociadad, tomar 3 valores y promediar -> moving-average, en pandas ya esta. .rolling se llama el metodo 
+    [ ✅ ] Para calcular velociadad, tomar 3 valores y promediar -> moving-average, en pandas ya esta. .rolling se llama el metodo 
     Uno de los argumentos es cuantos puntos quiere que use, si le damos 3 hace promedio de a 3.
     .mid para el promedio
 
-[ 🚫 ]  Agregar a la grafica la comparacion con el caso teorico, osea aplicando MRUV. Mas que nada para la posicion en Y.
+[ ✅ ]  Agregar a la grafica la comparacion con el caso teorico, osea aplicando MRUV. Mas que nada para la posicion en Y.
 
 [ ⌛️ ]  Hay que procesar los datos en base a lo guardado en el csv, en procesar_video no se debe aplicar ningun filtro, si en calcular_velocidades_aceleraciones
 Probar con los filtros, meter filtros en cada paso y despues probar con los distintos parametros de cada filtro como da mejor.
@@ -22,8 +22,9 @@ Osea el video deberia mostrarse 2 veces, uno el primero donde se hace el trackeo
 que dichos vectores se calcularon desde el trayectoria_objeto_completa.csv. Calculo habra que crear una funcion nueva
 que reciba como parametros el video, el csv de antes y de ahi lo pueda mostrar y dibujarle los vectores arriba
 
-[ 🚫 ] Y despues ver bien el tema para que el eje Y empieze en 4.28 y termine en 0
+[ ✅ ] Y despues ver bien el tema para que el eje Y empieze en 4.28 y termine en 0
 
-[ 🚫 ] Calcular la aceleracion promedio de TODOS los valores de aceleracion obtenidos e imprimirlos x consola o guardarlos en algun lado.
+[ ✅ ] Calcular la aceleracion promedio de TODOS los valores de aceleracion obtenidos e imprimirlos x consola o guardarlos en algun lado.
+        (Quedaron impresos por consola)
 
 [ 🚫 ] Si tienen ganas dejar la GUI un poco mas linda. ✨

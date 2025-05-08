@@ -120,25 +120,6 @@ def procesar_video(video, tracker):
         if cv2.waitKey(1) & 0xFF == 27:
             break
 
-    # Aplicar filtro Savitzky-Golay a los desplazamientos en píxeles
-    if len(desplazamientos_pixeles) > 5:  # Asegurarse de que haya suficientes datos
-        desplazamientos_pixeles = savgol_filter(
-            desplazamientos_pixeles, window_length=5, polyorder=2).tolist()
-
-    # Aplicar filtro Savitzky-Golay a las posiciones X e Y
-    if len(centros) > 5:
-        x_positions = [c['X'] for c in centros]
-        y_positions = [c['Y'] for c in centros]
-        x_positions_filtered = savgol_filter(
-            x_positions, window_length=7, polyorder=2).tolist()
-        y_positions_filtered = savgol_filter(
-            y_positions, window_length=7, polyorder=2).tolist()
-
-        # Actualizar las posiciones filtradas en la lista de centros
-        for i, c in enumerate(centros):
-            c['X'] = x_positions_filtered[i]
-            c['Y'] = y_positions_filtered[i]
-
     return centros, desplazamientos_ternarios, first_tracked_frame, frame_count, last_tracked_bbox
 
 
@@ -162,7 +143,7 @@ def guardar_csv(centros, factor_px_a_m, altura_caida):
 
     df = pd.DataFrame(centros)
     df['X_metros'] = df['X'] * factor_px_a_m
-    df['Y_metros'] = (altura_caida + 2) - (df['Y'] * factor_px_a_m)
+    df['Y_metros'] = (altura_caida) - (df['Y'] * factor_px_a_m)
     df['X_metros'] = df['X_metros'].rolling(3, min_periods=1).mean()
     df['Y_metros'] = df['Y_metros'].rolling(3, min_periods=1).mean()
     df[['Frame', 'X_metros', 'Y_metros']].to_csv(
@@ -176,6 +157,10 @@ def calcular_velocidades_aceleraciones(csv_path, fps):
 
     # Calcular el intervalo de tiempo entre frames
     dt = 1 / fps
+
+    # suavizar posición con Savitzky-Golay antes de derivar
+    df['X_metros'] = savgol_filter(df['X_metros'], window_length=7, polyorder=2)
+    df['Y_metros'] = savgol_filter(df['Y_metros'], window_length=7, polyorder=2)
 
     # Calcular velocidades (diferencias entre posiciones consecutivas)
     df['Velocidad_X'] = df['X_metros'].diff() / dt
@@ -201,7 +186,7 @@ def calcular_velocidades_aceleraciones(csv_path, fps):
     return df
 
 
-def calcular_velocidad_promedio(altura_caida, first_frame, last_frame, fps):
+def calcular_velocidad_aceleracion_promedio(altura_caida, first_frame, last_frame, fps):
     if first_frame is None:
         print(
             "No se pudo calcular la velocidad porque no se detectó ningún tracking exitoso.")
@@ -210,11 +195,13 @@ def calcular_velocidad_promedio(altura_caida, first_frame, last_frame, fps):
     duracion_frames = last_frame - first_frame + 1
     tiempo = duracion_frames / fps
     velocidad = altura_caida / tiempo
+    aceleracion = velocidad / tiempo
 
     print(f"Altura de la caída: {altura_caida} m")
     print(f"Frames de caída: {duracion_frames}")
     print(f"Tiempo de caída: {tiempo:.3f} s")
-    print(f"Velocidad promedio de caída: {velocidad:.3f} m/s")
+    print(f"Velocidad promedio de caída: - {velocidad:.3f} m/s")
+    print(f"Aceleración promedio de caída: - {aceleracion:.3f} m/s^2")
 
 # Función para calcular la caída en MRUV
 def calcular_mruv(tiempos, altura_caida):
@@ -324,13 +311,13 @@ def main():
     factor_px_a_m = calcular_factor_conversion(
         ALTURA_CAIDA, desplazamientos_ternarios)
     guardar_csv(centros, factor_px_a_m, ALTURA_CAIDA)
-    calcular_velocidad_promedio(
+    calcular_velocidad_aceleracion_promedio(
         ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
 
     # Calcular velocidades y aceleraciones desde el CSV
     calcular_velocidades_aceleraciones('trayectoria_objeto_metros.csv', FPS)
 
-    calcular_velocidad_promedio(
+    calcular_velocidad_aceleracion_promedio(
         ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
 
     graficar_resultados('trayectoria_objeto_completa.csv', ALTURA_CAIDA)
