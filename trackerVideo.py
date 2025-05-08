@@ -143,7 +143,7 @@ def guardar_csv(centros, factor_px_a_m, altura_caida):
 
     df = pd.DataFrame(centros)
     df['X_metros'] = df['X'] * factor_px_a_m
-    df['Y_metros'] = (altura_caida + 2) - (df['Y'] * factor_px_a_m)
+    df['Y_metros'] = (altura_caida) - (df['Y'] * factor_px_a_m)
     df['X_metros'] = df['X_metros'].rolling(3, min_periods=1).mean()
     df['Y_metros'] = df['Y_metros'].rolling(3, min_periods=1).mean()
     df[['Frame', 'X_metros', 'Y_metros']].to_csv(
