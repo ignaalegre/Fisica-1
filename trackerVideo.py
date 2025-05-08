@@ -143,7 +143,7 @@ def guardar_csv(centros, factor_px_a_m, altura_caida):
 
     df = pd.DataFrame(centros)
     df['X_metros'] = df['X'] * factor_px_a_m
-    df['Y_metros'] = (altura_caida) - (df['Y'] * factor_px_a_m)
+    df['Y_metros'] = (altura_caida + 2) - (df['Y'] * factor_px_a_m)
     df['X_metros'] = df['X_metros'].rolling(3, min_periods=1).mean()
     df['Y_metros'] = df['Y_metros'].rolling(3, min_periods=1).mean()
     df[['Frame', 'X_metros', 'Y_metros']].to_csv(
@@ -204,6 +204,8 @@ def calcular_velocidad_aceleracion_promedio(altura_caida, first_frame, last_fram
     print(f"Aceleración promedio de caída: - {aceleracion:.3f} m/s^2")
 
 # Función para calcular la caída en MRUV
+
+
 def calcular_mruv(tiempos, altura_caida):
     # Aceleración por la gravedad
     g = 9.81  # m/s^2
@@ -211,21 +213,25 @@ def calcular_mruv(tiempos, altura_caida):
     y0 = altura_caida  # Altura inicial
 
     # Calcular la posición, velocidad y aceleración en el tiempo para MRUV
-    posiciones_mruv = y0 - (1/2) * g * tiempos**2  # Suponiendo caída libre desde una altura
+    # Suponiendo caída libre desde una altura
+    posiciones_mruv = y0 - (1/2) * g * tiempos**2
     velocidades_mruv = -g * tiempos  # Velocidad en caída libre
-    aceleraciones_mruv = np.full_like(tiempos, -g)  # Aceleración constante en el MRUV
+    # Aceleración constante en el MRUV
+    aceleraciones_mruv = np.full_like(tiempos, -g)
 
     return posiciones_mruv, velocidades_mruv, aceleraciones_mruv
+
 
 def graficar_resultados(csv_path, altura_caida):
     # Leer el archivo CSV con los datos completos
     df = pd.read_csv(csv_path)
 
     # Crear el eje de tiempo basado en los frames
-    tiempos = df['Frame'] / 60  
+    tiempos = df['Frame'] / 60
 
     # Calcular las posiciones, velocidades y aceleraciones según MRUV
-    posiciones_mruv, velocidades_mruv, aceleraciones_mruv = calcular_mruv(tiempos, altura_caida)
+    posiciones_mruv, velocidades_mruv, aceleraciones_mruv = calcular_mruv(
+        tiempos, altura_caida)
 
     plt.figure(figsize=(12, 18))
 
@@ -240,7 +246,8 @@ def graficar_resultados(csv_path, altura_caida):
 
     # Posición en Y
     plt.subplot(3, 2, 2)
-    plt.plot(tiempos, df['Y_metros'], marker='o', color='r', label='Posición en Y Real')
+    plt.plot(tiempos, df['Y_metros'], marker='o',
+             color='r', label='Posición en Y Real')
     plt.plot(tiempos, posiciones_mruv, color='b', label='Posición en Y (MRUV)')
     plt.title('Posición en Y vs Tiempo')
     plt.xlabel('Tiempo (s)')
@@ -250,7 +257,8 @@ def graficar_resultados(csv_path, altura_caida):
 
     # Velocidad en X
     plt.subplot(3, 2, 3)
-    plt.plot(tiempos, df['Velocidad_X'], marker='o', label='Velocidad en X Real')
+    plt.plot(tiempos, df['Velocidad_X'], marker='o',
+             label='Velocidad en X Real')
     plt.title('Velocidad en X vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Velocidad X (m/s)')
@@ -259,8 +267,10 @@ def graficar_resultados(csv_path, altura_caida):
 
     # Velocidad en Y
     plt.subplot(3, 2, 4)
-    plt.plot(tiempos, df['Velocidad_Y'], marker='o', color='r', label='Velocidad en Y Real')
-    plt.plot(tiempos, velocidades_mruv, color='b', label='Velocidad en Y (MRUV)')
+    plt.plot(tiempos, df['Velocidad_Y'], marker='o',
+             color='r', label='Velocidad en Y Real')
+    plt.plot(tiempos, velocidades_mruv, color='b',
+             label='Velocidad en Y (MRUV)')
     plt.title('Velocidad en Y vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Velocidad Y (m/s)')
@@ -269,7 +279,8 @@ def graficar_resultados(csv_path, altura_caida):
 
     # Aceleración en X
     plt.subplot(3, 2, 5)
-    plt.plot(tiempos, df['Aceleracion_X'], marker='o', label='Aceleración en X Real')
+    plt.plot(tiempos, df['Aceleracion_X'], marker='o',
+             label='Aceleración en X Real')
     plt.title('Aceleración en X vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Aceleración X (m/s²)')
@@ -278,8 +289,10 @@ def graficar_resultados(csv_path, altura_caida):
 
     # Aceleración en Y
     plt.subplot(3, 2, 6)
-    plt.plot(tiempos, df['Aceleracion_Y'], marker='o', color='r', label='Aceleración en Y Real')
-    plt.plot(tiempos, aceleraciones_mruv, color='b', label='Aceleración en Y (MRUV)')
+    plt.plot(tiempos, df['Aceleracion_Y'], marker='o',
+             color='r', label='Aceleración en Y Real')
+    plt.plot(tiempos, aceleraciones_mruv, color='b',
+             label='Aceleración en Y (MRUV)')
     plt.title('Aceleración en Y vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Aceleración Y (m/s²)')
@@ -288,6 +301,7 @@ def graficar_resultados(csv_path, altura_caida):
 
     plt.tight_layout()
     plt.show()
+
 
 def main():
     # --- Parámetros dados ---
