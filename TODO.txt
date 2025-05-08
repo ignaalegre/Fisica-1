@@ -22,7 +22,7 @@ Osea el video deberia mostrarse 2 veces, uno el primero donde se hace el trackeo
 que dichos vectores se calcularon desde el trayectoria_objeto_completa.csv. Calculo habra que crear una funcion nueva
 que reciba como parametros el video, el csv de antes y de ahi lo pueda mostrar y dibujarle los vectores arriba
 
-[ 🚫 ] Y despues ver bien el tema para que el eje Y empieze en 4.28 y termine en 0
+[ ✅ ] Y despues ver bien el tema para que el eje Y empieze en 4.28 y termine en 0
 
 [ 🚫 ] Calcular la aceleracion promedio de TODOS los valores de aceleracion obtenidos e imprimirlos x consola o guardarlos en algun lado.
 
