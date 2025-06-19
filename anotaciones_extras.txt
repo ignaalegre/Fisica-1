@@ -1,0 +1,13 @@
+Con el filtrado nuevo las variaciones (aplicando primero rolling y después Savitzky-Golay)que tenemos son de:
+  - posición: van bien los valores de posición en Y, son apenas decimales lo que varía
+  - velocidad: también toma valores dentro de todo razonable, a pesar de que a lo último del movimiento se va levantando
+  - aceleración: acá es donde se ven las mayores variaciones, va desde -14 hasta -8 (sin contar los últimos valores cortados)
+
+  Sin embargo, con el filtrado viejo, se obtuvo una menor diferencia entre la aceleración máxima y mínima.
+  Esta mejor muestra esta guardada en tayectoria_objeto_completa_filtrado_original.csv
+
+  PREGUNTAS
+  - ¿Es necesario graficar el ajuste lineal entre la aceleración y la velocidad?
+
+  - Ya tenemos calculadas (se muestran por consola) cada fuerza del sistema y la sumatoria de las mismas de
+    forma teórica, y se muestran por consola. ¿Qué tendríamos que hacer con eso? ¿Está bien lo que hicimos? 

@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.signal import savgol_filter
+from scipy.optimize import curve_fit
+from scipy.stats import linregress
 
 
 def inicializar_video(path):
@@ -159,8 +161,10 @@ def calcular_velocidades_aceleraciones(csv_path, fps):
     dt = 1 / fps
 
     # suavizar posición con Savitzky-Golay antes de derivar
-    df['X_metros'] = savgol_filter(df['X_metros'], window_length=7, polyorder=2)
-    df['Y_metros'] = savgol_filter(df['Y_metros'], window_length=7, polyorder=2)
+    df['X_metros'] = savgol_filter(
+        df['X_metros'], window_length=7, polyorder=2)
+    df['Y_metros'] = savgol_filter(
+        df['Y_metros'], window_length=7, polyorder=2)
 
     # Calcular velocidades (diferencias entre posiciones consecutivas)
     df['Velocidad_X'] = df['X_metros'].diff() / dt
@@ -221,10 +225,68 @@ def calcular_mruv(tiempos, altura_caida):
 
     return posiciones_mruv, velocidades_mruv, aceleraciones_mruv
 
+# === FUNCIONES DE AJUSTE ===
 
-def graficar_resultados(csv_path, altura_caida):
+
+def ajuste_parabolico(t, y):
+    def modelo(t, a, b, c): return a * t**2 + b * t + c
+    params, _ = curve_fit(modelo, t, y)
+    return modelo(t, *params), params
+
+
+def ajuste_lineal(t, y):
+    def modelo(t, m, b): return m * t + b
+    params, _ = curve_fit(modelo, t, y)
+    return modelo(t, *params), params
+
+
+def ajuste_constante(t, y):
+    def modelo(t, c): return np.full_like(t, c)
+    params, _ = curve_fit(modelo, t, y)
+    return modelo(t, *params), params
+
+# === DINÁMICA ===
+
+
+def estimar_constante_viscosa(df, masa_objeto):
+    # Recortar posibles extremos ruidosos
+    df = df.iloc[5:-5] if len(df) > 10 else df.copy()
+
+    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
+    vel_y = df['Velocidad_Y'].values
+    acel_y = df['Aceleracion_Y'].values
+
+    slope, intercept, r_value, _, _ = linregress(vel_y, acel_y)
+
+    k = -masa_objeto * slope  # porque slope = -k/m
+
+    print(f"Modelo ajustado: a_Y = {intercept:.3f} + ({slope:.3f}) * v_Y")
+    print(f"Constante viscosa estimada: k = {k:.4f} kg/s")
+    print(f"Coeficiente de correlación R² = {r_value**2:.4f}")
+
+    return k
+
+
+def calcular_fuerzas(k, masa, aceleración_promedio, velocidad_promedio):
+    print(
+        f"Sumatoria de fuerzas usando solo la masa y aceleración = {masa*aceleración_promedio}")
+    fuerza_viscosa = k*velocidad_promedio
+    print(f"Fuerza viscosa = {fuerza_viscosa}")
+    fuerza_peso = {masa*-9.8}
+    print(f"Fuerza peso = {fuerza_peso}")
+    print(
+        f"Sumatoria de fuerzas sumando las 2 fuerzas calculadas= {fuerza_peso+fuerza_viscosa}")
+
+# === GRAFICAR ===
+
+
+def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
     # Leer el archivo CSV con los datos completos
     df = pd.read_csv(csv_path)
+
+    # Recortar bordes problemáticos
+    if len(df) > 2 * recorte_bordes:
+        df = df.iloc[recorte_bordes:-recorte_bordes]
 
     # Crear el eje de tiempo basado en los frames
     tiempos = df['Frame'] / 60
@@ -232,6 +294,15 @@ def graficar_resultados(csv_path, altura_caida):
     # Calcular las posiciones, velocidades y aceleraciones según MRUV
     posiciones_mruv, velocidades_mruv, aceleraciones_mruv = calcular_mruv(
         tiempos, altura_caida)
+    ajuste_pos_Y, coef_pos_Y = ajuste_parabolico(tiempos, df['Y_metros'])
+    ajuste_vel_Y, coef_vel_Y = ajuste_lineal(tiempos, df['Velocidad_Y'])
+    ajuste_ace_Y, coef_ace_Y = ajuste_constante(tiempos, df['Aceleracion_Y'])
+
+    print("\n--- Ajustes ---")
+    print(
+        f"Posición Y: a={coef_pos_Y[0]:.3f}, b={coef_pos_Y[1]:.3f}, c={coef_pos_Y[2]:.3f}")
+    print(f"Velocidad Y: m={coef_vel_Y[0]:.3f}, b={coef_vel_Y[1]:.3f}")
+    print(f"Aceleración Y constante: {coef_ace_Y[0]:.3f}")
 
     plt.figure(figsize=(12, 18))
 
@@ -247,8 +318,11 @@ def graficar_resultados(csv_path, altura_caida):
     # Posición en Y
     plt.subplot(3, 2, 2)
     plt.plot(tiempos, df['Y_metros'], marker='o',
-             color='r', label='Posición en Y Real')
-    plt.plot(tiempos, posiciones_mruv, color='b', label='Posición en Y (MRUV)')
+             color='hotpink', label='Posición en Y Real')
+    plt.plot(tiempos, posiciones_mruv, color='lightskyblue',
+             label='Posición en Y (teórico)')
+    plt.plot(tiempos, ajuste_pos_Y, '--',
+             color='darkviolet', label='Ajuste parabólico')
     plt.title('Posición en Y vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Altura (m)')
@@ -268,9 +342,11 @@ def graficar_resultados(csv_path, altura_caida):
     # Velocidad en Y
     plt.subplot(3, 2, 4)
     plt.plot(tiempos, df['Velocidad_Y'], marker='o',
-             color='r', label='Velocidad en Y Real')
-    plt.plot(tiempos, velocidades_mruv, color='b',
-             label='Velocidad en Y (MRUV)')
+             color='hotpink', label='Velocidad en Y Real')
+    plt.plot(tiempos, velocidades_mruv, color='lightskyblue',
+             label='Velocidad en Y (teórico)')
+    plt.plot(tiempos, ajuste_vel_Y, '--',
+             color='darkviolet', label='Ajuste lineal')
     plt.title('Velocidad en Y vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Velocidad Y (m/s)')
@@ -290,9 +366,11 @@ def graficar_resultados(csv_path, altura_caida):
     # Aceleración en Y
     plt.subplot(3, 2, 6)
     plt.plot(tiempos, df['Aceleracion_Y'], marker='o',
-             color='r', label='Aceleración en Y Real')
-    plt.plot(tiempos, aceleraciones_mruv, color='b',
-             label='Aceleración en Y (MRUV)')
+             color='hotpink', label='Aceleración en Y Real')
+    plt.plot(tiempos, aceleraciones_mruv, color='lightskyblue',
+             label='Aceleración en Y (teórico)')
+    plt.plot(tiempos, ajuste_ace_Y, '--',
+             color='darkviolet', label='Ajuste constante')
     plt.title('Aceleración en Y vs Tiempo')
     plt.xlabel('Tiempo (s)')
     plt.ylabel('Aceleración Y (m/s²)')
@@ -308,6 +386,7 @@ def main():
     VIDEO_PATH = 'oso_recortados/oso_sin_globo.mov'
     ALTURA_CAIDA = 4.28  # en metros
     FPS = 60
+    MASA_OBJETO = 0.1
 
     # --- Ejecución del flujo principal ---
     video, first_frame = inicializar_video(VIDEO_PATH)
@@ -329,12 +408,19 @@ def main():
         ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
 
     # Calcular velocidades y aceleraciones desde el CSV
-    calcular_velocidades_aceleraciones('trayectoria_objeto_metros.csv', FPS)
+    df = calcular_velocidades_aceleraciones(
+        'trayectoria_objeto_metros.csv', FPS)
 
     calcular_velocidad_aceleracion_promedio(
         ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
 
-    graficar_resultados('trayectoria_objeto_completa.csv', ALTURA_CAIDA)
+    k = estimar_constante_viscosa(df, MASA_OBJETO)
+    print(f"Constante viscosa estimada: {k}")
+    # TODO terminar esta función y las de calcular la velocidad y aceleración promedio desde el csv
+    calcular_fuerzas(k, MASA_OBJETO)
+
+    graficar_resultados(
+        'trayectoria_objeto_completa.csv', ALTURA_CAIDA)
 
     video.release()
     cv2.destroyAllWindows()
