@@ -207,6 +207,14 @@ def calcular_velocidad_aceleracion_promedio(altura_caida, first_frame, last_fram
     print(f"Velocidad promedio de caída: - {velocidad:.3f} m/s")
     print(f"Aceleración promedio de caída: - {aceleracion:.3f} m/s^2")
 
+
+def velocidad_promedio_y(df):
+    return df['Velocidad_Y'].mean()
+
+
+def aceleración_promedio_y(df):
+    return df['Aceleracion_Y'].mean()
+
 # Función para calcular la caída en MRUV
 
 
@@ -270,12 +278,13 @@ def estimar_constante_viscosa(df, masa_objeto):
 def calcular_fuerzas(k, masa, aceleración_promedio, velocidad_promedio):
     print(
         f"Sumatoria de fuerzas usando solo la masa y aceleración = {masa*aceleración_promedio}")
-    fuerza_viscosa = k*velocidad_promedio
+    # la fuerza viscosa es negativa porque la velocidad es negativa
+    fuerza_viscosa = -k*velocidad_promedio
     print(f"Fuerza viscosa = {fuerza_viscosa}")
-    fuerza_peso = {masa*-9.8}
+    fuerza_peso = masa*-9.8
     print(f"Fuerza peso = {fuerza_peso}")
     print(
-        f"Sumatoria de fuerzas sumando las 2 fuerzas calculadas= {fuerza_peso+fuerza_viscosa}")
+        f"Sumatoria de fuerzas sumando las 2 fuerzas calculadas= {-fuerza_peso+fuerza_viscosa}")
 
 # === GRAFICAR ===
 
@@ -416,11 +425,12 @@ def main():
 
     k = estimar_constante_viscosa(df, MASA_OBJETO)
     print(f"Constante viscosa estimada: {k}")
-    # TODO terminar esta función y las de calcular la velocidad y aceleración promedio desde el csv
-    calcular_fuerzas(k, MASA_OBJETO)
+    vel_promedio_y = velocidad_promedio_y(df)
+    acel_promedio_y = aceleración_promedio_y(df)
+    calcular_fuerzas(k, MASA_OBJETO, acel_promedio_y, vel_promedio_y)
 
     graficar_resultados(
-        'trayectoria_objeto_completa.csv', ALTURA_CAIDA)
+        'trayectoria_objeto_completa_nuevo_filtrado.csv', ALTURA_CAIDA)
 
     video.release()
     cv2.destroyAllWindows()

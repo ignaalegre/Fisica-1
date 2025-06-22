@@ -11,3 +11,13 @@ Con el filtrado nuevo las variaciones (aplicando primero rolling y después Savi
 
   - Ya tenemos calculadas (se muestran por consola) cada fuerza del sistema y la sumatoria de las mismas de
     forma teórica, y se muestran por consola. ¿Qué tendríamos que hacer con eso? ¿Está bien lo que hicimos? 
+
+  - Es necesario calcular la velocidad/aceleración promedio en X?
+
+  - Hay que corregir los cálculos teóricos para incluir la fuerza viscosa?
+
+  - Chequear calculo de las fuerzas
+
+  - Hay que cambiar escalas?
+
+  - Hay que calcular velocidad, aceleración y posición en x?
