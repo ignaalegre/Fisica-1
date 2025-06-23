@@ -199,13 +199,11 @@ def calcular_velocidad_aceleracion_promedio(altura_caida, first_frame, last_fram
     duracion_frames = last_frame - first_frame + 1
     tiempo = duracion_frames / fps
     velocidad = altura_caida / tiempo
-    aceleracion = velocidad / tiempo
 
     print(f"Altura de la caída: {altura_caida} m")
     print(f"Frames de caída: {duracion_frames}")
     print(f"Tiempo de caída: {tiempo:.3f} s")
     print(f"Velocidad promedio de caída: - {velocidad:.3f} m/s")
-    print(f"Aceleración promedio de caída: - {aceleracion:.3f} m/s^2")
 
 
 def velocidad_promedio_y(df):
@@ -295,7 +293,7 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
 
     # Recortar bordes problemáticos
     if len(df) > 2 * recorte_bordes:
-        df = df.iloc[recorte_bordes:-recorte_bordes]
+        df = df.iloc[0:-recorte_bordes]
 
     # Crear el eje de tiempo basado en los frames
     tiempos = df['Frame'] / 60
@@ -385,14 +383,16 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
     plt.ylabel('Aceleración Y (m/s²)')
     plt.grid()
     plt.legend()
-
+    print(f"*Aceleracion  promedio en Y en base al csv:" ,df['Aceleracion_Y'].mean())
+    print(f"*Velocidad promedio en Y en base al csv:" ,df['Velocidad_Y'].mean())
     plt.tight_layout()
     plt.show()
+    
 
 
 def main():
     # --- Parámetros dados ---
-    VIDEO_PATH = 'oso_recortados/oso_sin_globo.mov'
+    VIDEO_PATH = 'oso_recortados/oso_globo_grande.mov'
     ALTURA_CAIDA = 4.28  # en metros
     FPS = 60
     MASA_OBJETO = 0.1
@@ -432,6 +432,8 @@ def main():
     graficar_resultados(
         'trayectoria_objeto_completa_nuevo_filtrado.csv', ALTURA_CAIDA)
 
+    print(f"Aceleracion promedio: {acel_promedio_y}")
+     
     video.release()
     cv2.destroyAllWindows()
 
