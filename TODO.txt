@@ -29,8 +29,27 @@ que reciba como parametros el video, el csv de antes y de ahi lo pueda mostrar y
 
 [ 🚫 ] Si tienen ganas dejar la GUI un poco mas linda. ✨
 
-[ 🚫 ] !!!! Calcular velocidad y aceleracion promedio en base al archivo csv trayectoria_objeto_completa
+[ 🚫 ] Calcular velocidad y aceleracion promedio en base al archivo csv trayectoria_objeto_completa
 
-[ ✅ ] Cortar los ultimos valores en velocidad y aceleracion ya que estan distorsionados por el rolling o Savitzky
+[ 🚫 ] Cortar los ultimos valores en velocidad y aceleracion ya que estan distorsionados por el rolling o Savitzky
 
-[ ✅ ] Ajuste de funciones
+
+PARTE 2: DINAMICA
+
+    Tomamos el objeto como 1 solo cuerpo, por mas que sean 2.
+
+[ 🚫 ] Ajustar a funciones de recta y parabola los graficos para conseguir una constante y asi poder calcular la fuerza de rozamiento.
+
+[ 🚫 ] La fuerza en funcion de velocidad nos daria una recta, la pendiente de la recta es la constante viscosa.
+
+[ 🚫 ] Calcular la fuerza de rozamiento en funcion de los datos medidos, graficarla, ver si varia en el tiempo y vemos como varia.
+
+[ 🚫 ] Graficar fuerza vs velocidad.
+
+[ 🚫 ] Para energia: Integrar F en funcion del tiempo, eso va a ser impulso, y podemos saber el impulso que nos va a estar haciendo la fuerza viscosa.
+
+[ 🚫 ]
+
+[ 🚫 ]
+
+[ 🚫 ]

@@ -24,3 +24,6 @@ Con el filtrado nuevo las variaciones (aplicando primero rolling y después Savi
 
   r^2 es un valor, a cada ajuste se le puede calcular ese valor r^2, el que tenga el r^2 mas grande, osea cerca de 1
   va a ser el mejor ajuste.
+
+  A partir de usar la segunda ley de newton, podemos sacar de forma teorica la posicion de Y en funcion del tiempo
+  

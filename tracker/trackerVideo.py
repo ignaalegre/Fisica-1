@@ -8,17 +8,65 @@ from scipy.optimize import curve_fit
 from scipy.stats import linregress
 
 
+def main():
+    # --- Parámetros dados ---
+    VIDEO_PATH = 'media/oso_recortados/oso_globo_grande.mov'
+    ALTURA_CAIDA = 4.28  # en metros
+    FPS = 60
+    MASA_OBJETO = 0.1
+
+    # --- Ejecución del flujo principal ---
+    video, first_frame = inicializar_video(VIDEO_PATH)
+    tracker, bbox = seleccionar_roi(first_frame)
+    centros, desplazamientos_ternarios, first_tracked_frame, last_frame, last_bbox = procesar_video(
+        video, tracker)
+
+    print(f"Primer frame con tracking exitoso: {first_tracked_frame}")
+    if last_bbox:
+        print(f"Último bbox válido: {last_bbox}")
+        print(f"Último frame con tracking exitoso: {last_frame}")
+    else:
+        print("No se logró trackear ningún frame exitosamente.")
+
+    factor_px_a_m = calcular_factor_conversion(
+        ALTURA_CAIDA, desplazamientos_ternarios)
+    guardar_csv(centros, factor_px_a_m, ALTURA_CAIDA)
+    calcular_velocidad_aceleracion_promedio(
+        ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
+    
+    calcular_velocidad_aceleracion_promedio( ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
+
+    # Calcular velocidades y aceleraciones desde el CSV
+    df = calcular_velocidades_aceleraciones(
+        'tracker/csv_generados/trayectoria_objeto_metros.csv', FPS)
+
+    k = estimar_constante_viscosa(df, MASA_OBJETO)
+    print(f"Constante viscosa estimada: {k}")
+    vel_promedio_y = velocidad_promedio_y(df)
+    acel_promedio_y = aceleración_promedio_y(df)
+    calcular_fuerzas(k, MASA_OBJETO, acel_promedio_y, vel_promedio_y)
+
+    graficar_resultados(
+        'tracker/csv_generados/trayectoria_objeto_completa.csv', ALTURA_CAIDA)
+
+    print(f"Aceleracion promedio: {acel_promedio_y}")
+     
+    video.release()
+    cv2.destroyAllWindows()
+
+
+
 def inicializar_video(path):
     video = cv2.VideoCapture(path)
 
     # Lee 1er frame
     ok, frame = video.read()
     if not ok:
-        print("No se pudo leer el video")
+        print("No se pudo leer el video") 
         exit()
 
     # Da vuelta el video
-    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE) 
 
     return video, frame
 
@@ -149,7 +197,7 @@ def guardar_csv(centros, factor_px_a_m, altura_caida):
     df['X_metros'] = df['X_metros'].rolling(3, min_periods=1).mean()
     df['Y_metros'] = df['Y_metros'].rolling(3, min_periods=1).mean()
     df[['Frame', 'X_metros', 'Y_metros']].to_csv(
-        'trayectoria_objeto_metros.csv', index=False)
+        'tracker/csv_generados/trayectoria_objeto_metros.csv', index=False)
     print("Archivo 'trayectoria_objeto_metros.csv' generado exitosamente.")
 
 
@@ -182,7 +230,7 @@ def calcular_velocidades_aceleraciones(csv_path, fps):
     df.fillna(0, inplace=True)
 
     # Guardar el DataFrame actualizado en un nuevo archivo CSV
-    output_csv_path = 'trayectoria_objeto_completa.csv'
+    output_csv_path = 'tracker/csv_generados/trayectoria_objeto_completa.csv'
     df.to_csv(output_csv_path, index=False)
     print(
         f"Archivo con velocidades y aceleraciones guardado en: {output_csv_path}")
@@ -390,52 +438,8 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
     
 
 
-def main():
-    # --- Parámetros dados ---
-    VIDEO_PATH = 'oso_recortados/oso_globo_grande.mov'
-    ALTURA_CAIDA = 4.28  # en metros
-    FPS = 60
-    MASA_OBJETO = 0.1
 
-    # --- Ejecución del flujo principal ---
-    video, first_frame = inicializar_video(VIDEO_PATH)
-    tracker, bbox = seleccionar_roi(first_frame)
-    centros, desplazamientos_ternarios, first_tracked_frame, last_frame, last_bbox = procesar_video(
-        video, tracker)
-
-    print(f"Primer frame con tracking exitoso: {first_tracked_frame}")
-    if last_bbox:
-        print(f"Último bbox válido: {last_bbox}")
-        print(f"Último frame con tracking exitoso: {last_frame}")
-    else:
-        print("No se logró trackear ningún frame exitosamente.")
-
-    factor_px_a_m = calcular_factor_conversion(
-        ALTURA_CAIDA, desplazamientos_ternarios)
-    guardar_csv(centros, factor_px_a_m, ALTURA_CAIDA)
-    calcular_velocidad_aceleracion_promedio(
-        ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
-
-    # Calcular velocidades y aceleraciones desde el CSV
-    df = calcular_velocidades_aceleraciones(
-        'trayectoria_objeto_metros.csv', FPS)
-
-    calcular_velocidad_aceleracion_promedio(
-        ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
-
-    k = estimar_constante_viscosa(df, MASA_OBJETO)
-    print(f"Constante viscosa estimada: {k}")
-    vel_promedio_y = velocidad_promedio_y(df)
-    acel_promedio_y = aceleración_promedio_y(df)
-    calcular_fuerzas(k, MASA_OBJETO, acel_promedio_y, vel_promedio_y)
-
-    graficar_resultados(
-        'trayectoria_objeto_completa_nuevo_filtrado.csv', ALTURA_CAIDA)
-
-    print(f"Aceleracion promedio: {acel_promedio_y}")
      
-    video.release()
-    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
