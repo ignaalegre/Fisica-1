@@ -13,7 +13,7 @@ En calcular_velocidades_aceleraciones:
 
 [ ✅ ]  Agregar a la grafica la comparacion con el caso teorico, osea aplicando MRUV. Mas que nada para la posicion en Y.
 
-[ ⌛️ ]  Hay que procesar los datos en base a lo guardado en el csv, en procesar_video no se debe aplicar ningun filtro, si en calcular_velocidades_aceleraciones
+[ ✅ ]  Hay que procesar los datos en base a lo guardado en el csv, en procesar_video no se debe aplicar ningun filtro, si en calcular_velocidades_aceleraciones
 Probar con los filtros, meter filtros en cada paso y despues probar con los distintos parametros de cada filtro como da mejor.
 O tambien probar sin los filtros a ver como da mejor
 
@@ -29,9 +29,9 @@ que reciba como parametros el video, el csv de antes y de ahi lo pueda mostrar y
 
 [ 🚫 ] Si tienen ganas dejar la GUI un poco mas linda. ✨
 
-[ 🚫 ] Calcular velocidad y aceleracion promedio en base al archivo csv trayectoria_objeto_completa
+[ ✅ ] Calcular velocidad y aceleracion promedio en base al archivo csv trayectoria_objeto_completa
 
-[ 🚫 ] Cortar los ultimos valores en velocidad y aceleracion ya que estan distorsionados por el rolling o Savitzky
+[ ✅ ] Cortar los ultimos valores en velocidad y aceleracion ya que estan distorsionados por el rolling o Savitzky
 
 
 PARTE 2: DINAMICA

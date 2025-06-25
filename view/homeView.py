@@ -1,16 +1,13 @@
-import cv2
-import math
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
-from scipy.stats import linregress
 import tkinter as tk
 from tkinter import ttk
 
+
 def main():
-    ALTURA_CAIDA = 4.28  # en metros
+    ALTURA_CAIDA = 4.28
     MASA_OBJETO = 0.1
 
     archivos = {
@@ -25,11 +22,12 @@ def main():
         ruta = archivos[seleccion]
         df = pd.read_csv(ruta)
 
-        k = estimar_constante_viscosa(df, MASA_OBJETO)
-        print(f"Constante viscosa estimada: {k}")
+        estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
+        estimar_constante_viscosa_con_ajuste_cuadrático(df, MASA_OBJETO)
         vel_promedio_y = velocidad_promedio_y(df)
         acel_promedio_y = aceleración_promedio_y(df)
-        calcular_fuerzas(k, MASA_OBJETO, acel_promedio_y, vel_promedio_y)
+        print(f"Aceleración promedio basado en el csv: {acel_promedio_y}")
+        print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
 
         graficar_resultados(ruta, ALTURA_CAIDA)
 
@@ -46,60 +44,7 @@ def main():
     combo.bind("<<ComboboxSelected>>", on_selection)
 
     root.mainloop()
-     
-    
 
-
-def estimar_constante_viscosa(df, masa_objeto):
-    # Recortar posibles extremos ruidosos
-    df = df.iloc[5:-5] if len(df) > 10 else df.copy()
-
-    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
-    vel_y = df['Velocidad_Y'].values
-    acel_y = df['Aceleracion_Y'].values
-
-    slope, intercept, r_value, _, _ = linregress(vel_y, acel_y)
-
-    k = -masa_objeto * slope  # porque slope = -k/m
-
-    print(f"Modelo ajustado: a_Y = {intercept:.3f} + ({slope:.3f}) * v_Y")
-    print(f"Constante viscosa estimada: k = {k:.4f} kg/s")
-    print(f"Coeficiente de correlación R² = {r_value**2:.4f}")
-
-    return k
-
-def velocidad_promedio_y(df):
-    return df['Velocidad_Y'].mean()
-
-
-def aceleración_promedio_y(df):
-    return df['Aceleracion_Y'].mean()
-
-def calcular_fuerzas(k, masa, aceleración_promedio, velocidad_promedio):
-    print(
-        f"Sumatoria de fuerzas usando solo la masa y aceleración = {masa*aceleración_promedio}")
-    # la fuerza viscosa es negativa porque la velocidad es negativa
-    fuerza_viscosa = -k*velocidad_promedio
-    print(f"Fuerza viscosa = {fuerza_viscosa}")
-    fuerza_peso = masa*-9.8
-    print(f"Fuerza peso = {fuerza_peso}")
-    print(
-        f"Sumatoria de fuerzas sumando las 2 fuerzas calculadas= {-fuerza_peso+fuerza_viscosa}")
-    
-def calcular_mruv(tiempos, altura_caida):
-    # Aceleración por la gravedad
-    g = 9.81  # m/s^2
-    v0 = 0  # Velocidad inicial
-    y0 = altura_caida  # Altura inicial
-
-    # Calcular la posición, velocidad y aceleración en el tiempo para MRUV
-    # Suponiendo caída libre desde una altura
-    posiciones_mruv = y0 - (1/2) * g * tiempos**2
-    velocidades_mruv = -g * tiempos  # Velocidad en caída libre
-    # Aceleración constante en el MRUV
-    aceleraciones_mruv = np.full_like(tiempos, -g)
-
-    return posiciones_mruv, velocidades_mruv, aceleraciones_mruv
 
 def ajuste_parabolico(t, y):
     def modelo(t, a, b, c): return a * t**2 + b * t + c
@@ -118,7 +63,76 @@ def ajuste_constante(t, y):
     params, _ = curve_fit(modelo, t, y)
     return modelo(t, *params), params
 
-    
+
+def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
+    # Recortar posibles extremos ruidosos
+    df = df.iloc[0:-5] if len(df) > 10 else df.copy()
+
+    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
+    vel_y = df['Velocidad_Y'].values
+    acel_y = df['Aceleracion_Y'].values
+
+    ajustado, (m, b) = ajuste_lineal(vel_y, acel_y)
+
+    k = -masa_objeto * m  # porque m ≈ -k/m
+
+    # Calcular R²
+    ss_res = np.sum((acel_y - ajustado) ** 2)
+    ss_tot = np.sum((acel_y - np.mean(acel_y)) ** 2)
+    r2 = 1 - ss_res / ss_tot
+
+    print(f"Modelo ajustado: a_Y = {b:.3f} + ({m:.3f}) * v_Y")
+    print(f"Constante viscosa estimada con ajuste lineal: k = {k:.4f} kg/s")
+    print(f"Coeficiente de correlación R² = {r2:.4f}")
+
+
+def estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto):
+    # Recortar posibles extremos ruidosos
+    df = df.iloc[0:-5] if len(df) > 10 else df.copy()
+
+    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
+    vel_y = df['Velocidad_Y'].values
+    acel_y = df['Aceleracion_Y'].values
+
+    ajustado, (a, b, c) = ajuste_parabolico(vel_y, acel_y)
+
+    k = -masa_objeto * b  # porque b ≈ -k/m
+
+    # Calcular R²
+    ss_res = np.sum((acel_y - ajustado) ** 2)
+    ss_tot = np.sum((acel_y - np.mean(acel_y)) ** 2)
+    r2 = 1 - ss_res / ss_tot
+
+    print(f"Modelo ajustado: a_Y = {c:.3f} + ({b:.3f})*v_Y + ({a:.3f})*v_Y²")
+    print(
+        f"Constante viscosa estimada con ajuste parabólico: k = {k:.4f} kg/s")
+    print(f"Coeficiente de correlación R² = {r2:.4f}")
+
+
+def velocidad_promedio_y(df):
+    return df['Velocidad_Y'].mean()
+
+
+def aceleración_promedio_y(df):
+    return df['Aceleracion_Y'].mean()
+
+
+def calcular_mruv(tiempos, altura_caida):
+    # Aceleración por la gravedad
+    g = 9.81  # m/s^2
+    v0 = 0  # Velocidad inicial
+    y0 = altura_caida  # Altura inicial
+
+    # Calcular la posición, velocidad y aceleración en el tiempo para MRUV
+    # Suponiendo caída libre desde una altura
+    posiciones_mruv = y0 - (1/2) * g * tiempos**2
+    velocidades_mruv = -g * tiempos  # Velocidad en caída libre
+    # Aceleración constante en el MRUV
+    aceleraciones_mruv = np.full_like(tiempos, -g)
+
+    return posiciones_mruv, velocidades_mruv, aceleraciones_mruv
+
+
 def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
     # Leer el archivo CSV con los datos completos
     df = pd.read_csv(csv_path)
@@ -144,6 +158,10 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
     print(f"Aceleración Y constante: {coef_ace_Y[0]:.3f}")
 
     plt.figure(figsize=(12, 18))
+
+    # Crear una figura más grande para más subplots
+    fig, axs = plt.subplots(4, 2, figsize=(14, 20))
+    axs = axs.flatten()
 
     # Posición en X
     plt.subplot(3, 2, 1)
@@ -215,13 +233,14 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
     plt.ylabel('Aceleración Y (m/s²)')
     plt.grid()
     plt.legend()
-    print(f"*Aceleracion  promedio en Y en base al csv:" ,df['Aceleracion_Y'].mean())
-    print(f"*Velocidad promedio en Y en base al csv:" ,df['Velocidad_Y'].mean())
+    print(f"*Aceleracion  promedio en Y en base al csv:",
+          df['Aceleracion_Y'].mean())
+    print(f"*Velocidad promedio en Y en base al csv:",
+          df['Velocidad_Y'].mean())
+
     plt.tight_layout()
     plt.show()
-    
-    
-    
-    
+
+
 if __name__ == "__main__":
     main()

@@ -1,11 +1,9 @@
 import cv2
 import math
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
-from scipy.stats import linregress
 
 
 def main():
@@ -31,29 +29,16 @@ def main():
     factor_px_a_m = calcular_factor_conversion(
         ALTURA_CAIDA, desplazamientos_ternarios)
     guardar_csv(centros, factor_px_a_m, ALTURA_CAIDA)
-    calcular_velocidad_aceleracion_promedio(
-        ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
-    
-    calcular_velocidad_aceleracion_promedio( ALTURA_CAIDA, first_tracked_frame, last_frame, FPS)
 
     # Calcular velocidades y aceleraciones desde el CSV
     df = calcular_velocidades_aceleraciones(
         'tracker/csv_generados/trayectoria_objeto_metros.csv', FPS)
 
-    k = estimar_constante_viscosa(df, MASA_OBJETO)
-    print(f"Constante viscosa estimada: {k}")
-    vel_promedio_y = velocidad_promedio_y(df)
-    acel_promedio_y = aceleración_promedio_y(df)
-    calcular_fuerzas(k, MASA_OBJETO, acel_promedio_y, vel_promedio_y)
+    # Calcular fuerza de rozamiento
+    df = calcular_fuerza_rozamiento(df, MASA_OBJETO)
 
-    graficar_resultados(
-        'tracker/csv_generados/trayectoria_objeto_completa.csv', ALTURA_CAIDA)
-
-    print(f"Aceleracion promedio: {acel_promedio_y}")
-     
     video.release()
     cv2.destroyAllWindows()
-
 
 
 def inicializar_video(path):
@@ -62,11 +47,11 @@ def inicializar_video(path):
     # Lee 1er frame
     ok, frame = video.read()
     if not ok:
-        print("No se pudo leer el video") 
+        print("No se pudo leer el video")
         exit()
 
     # Da vuelta el video
-    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE) 
+    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
 
     return video, frame
 
@@ -200,6 +185,39 @@ def guardar_csv(centros, factor_px_a_m, altura_caida):
         'tracker/csv_generados/trayectoria_objeto_metros.csv', index=False)
     print("Archivo 'trayectoria_objeto_metros.csv' generado exitosamente.")
 
+# === FUNCIONES DE AJUSTE ===
+
+
+def ajuste_parabolico(t, y):
+    def modelo(t, a, b, c): return a * t**2 + b * t + c
+    params, _ = curve_fit(modelo, t, y)
+    return modelo(t, *params), params
+
+
+def ajuste_lineal(t, y):
+    def modelo(t, m, b): return m * t + b
+    params, _ = curve_fit(modelo, t, y)
+    return modelo(t, *params), params
+
+
+def ajuste_constante(t, y):
+    def modelo(t, c): return np.full_like(t, c)
+    params, _ = curve_fit(modelo, t, y)
+    return modelo(t, *params), params
+
+
+def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
+    # Recortar posibles extremos ruidosos
+    df = df.iloc[0:-5] if len(df) > 10 else df.copy()
+    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
+    vel_y = df['Velocidad_Y'].values
+    acel_y = df['Aceleracion_Y'].values
+    _, (m, b) = ajuste_lineal(vel_y, acel_y)
+    k = -masa_objeto * m  # porque m ≈ -k/m
+    return k
+
+
+# CINEMATICA
 
 def calcular_velocidades_aceleraciones(csv_path, fps):
     # Leer el archivo CSV
@@ -230,28 +248,23 @@ def calcular_velocidades_aceleraciones(csv_path, fps):
     df.fillna(0, inplace=True)
 
     # Guardar el DataFrame actualizado en un nuevo archivo CSV
-    output_csv_path = 'tracker/csv_generados/trayectoria_objeto_completa.csv'
+    output_csv_path = 'data/trayectoria_globo_grande.csv'
     df.to_csv(output_csv_path, index=False)
     print(
         f"Archivo con velocidades y aceleraciones guardado en: {output_csv_path}")
 
     return df
 
+# DINAMICA
 
-def calcular_velocidad_aceleracion_promedio(altura_caida, first_frame, last_frame, fps):
-    if first_frame is None:
-        print(
-            "No se pudo calcular la velocidad porque no se detectó ningún tracking exitoso.")
-        return
 
-    duracion_frames = last_frame - first_frame + 1
-    tiempo = duracion_frames / fps
-    velocidad = altura_caida / tiempo
-
-    print(f"Altura de la caída: {altura_caida} m")
-    print(f"Frames de caída: {duracion_frames}")
-    print(f"Tiempo de caída: {tiempo:.3f} s")
-    print(f"Velocidad promedio de caída: - {velocidad:.3f} m/s")
+def calcular_fuerza_rozamiento(df, masa_objeto):
+    k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
+    df['Fuerza_Rozamiento_Y'] = -k * df['Velocidad_Y']
+    # Guardar el CSV actualizado con la fuerza de rozamiento incluida
+    df.to_csv('data/trayectoria_globo_grande.csv', index=False)
+    print("Archivo actualizado con fuerza de rozamiento guardado en data/trayectoria_globo_grande.csv")
+    return df
 
 
 def velocidad_promedio_y(df):
@@ -278,168 +291,6 @@ def calcular_mruv(tiempos, altura_caida):
     aceleraciones_mruv = np.full_like(tiempos, -g)
 
     return posiciones_mruv, velocidades_mruv, aceleraciones_mruv
-
-# === FUNCIONES DE AJUSTE ===
-
-
-def ajuste_parabolico(t, y):
-    def modelo(t, a, b, c): return a * t**2 + b * t + c
-    params, _ = curve_fit(modelo, t, y)
-    return modelo(t, *params), params
-
-
-def ajuste_lineal(t, y):
-    def modelo(t, m, b): return m * t + b
-    params, _ = curve_fit(modelo, t, y)
-    return modelo(t, *params), params
-
-
-def ajuste_constante(t, y):
-    def modelo(t, c): return np.full_like(t, c)
-    params, _ = curve_fit(modelo, t, y)
-    return modelo(t, *params), params
-
-# === DINÁMICA ===
-
-
-def estimar_constante_viscosa(df, masa_objeto):
-    # Recortar posibles extremos ruidosos
-    df = df.iloc[5:-5] if len(df) > 10 else df.copy()
-
-    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
-    vel_y = df['Velocidad_Y'].values
-    acel_y = df['Aceleracion_Y'].values
-
-    slope, intercept, r_value, _, _ = linregress(vel_y, acel_y)
-
-    k = -masa_objeto * slope  # porque slope = -k/m
-
-    print(f"Modelo ajustado: a_Y = {intercept:.3f} + ({slope:.3f}) * v_Y")
-    print(f"Constante viscosa estimada: k = {k:.4f} kg/s")
-    print(f"Coeficiente de correlación R² = {r_value**2:.4f}")
-
-    return k
-
-
-def calcular_fuerzas(k, masa, aceleración_promedio, velocidad_promedio):
-    print(
-        f"Sumatoria de fuerzas usando solo la masa y aceleración = {masa*aceleración_promedio}")
-    # la fuerza viscosa es negativa porque la velocidad es negativa
-    fuerza_viscosa = -k*velocidad_promedio
-    print(f"Fuerza viscosa = {fuerza_viscosa}")
-    fuerza_peso = masa*-9.8
-    print(f"Fuerza peso = {fuerza_peso}")
-    print(
-        f"Sumatoria de fuerzas sumando las 2 fuerzas calculadas= {-fuerza_peso+fuerza_viscosa}")
-
-# === GRAFICAR ===
-
-
-def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
-    # Leer el archivo CSV con los datos completos
-    df = pd.read_csv(csv_path)
-
-    # Recortar bordes problemáticos
-    if len(df) > 2 * recorte_bordes:
-        df = df.iloc[0:-recorte_bordes]
-
-    # Crear el eje de tiempo basado en los frames
-    tiempos = df['Frame'] / 60
-
-    # Calcular las posiciones, velocidades y aceleraciones según MRUV
-    posiciones_mruv, velocidades_mruv, aceleraciones_mruv = calcular_mruv(
-        tiempos, altura_caida)
-    ajuste_pos_Y, coef_pos_Y = ajuste_parabolico(tiempos, df['Y_metros'])
-    ajuste_vel_Y, coef_vel_Y = ajuste_lineal(tiempos, df['Velocidad_Y'])
-    ajuste_ace_Y, coef_ace_Y = ajuste_constante(tiempos, df['Aceleracion_Y'])
-
-    print("\n--- Ajustes ---")
-    print(
-        f"Posición Y: a={coef_pos_Y[0]:.3f}, b={coef_pos_Y[1]:.3f}, c={coef_pos_Y[2]:.3f}")
-    print(f"Velocidad Y: m={coef_vel_Y[0]:.3f}, b={coef_vel_Y[1]:.3f}")
-    print(f"Aceleración Y constante: {coef_ace_Y[0]:.3f}")
-
-    plt.figure(figsize=(12, 18))
-
-    # Posición en X
-    plt.subplot(3, 2, 1)
-    plt.plot(tiempos, df['X_metros'], marker='o', label='Posición en X Real')
-    plt.title('Posición en X vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Posición X (m)')
-    plt.grid()
-    plt.legend()
-
-    # Posición en Y
-    plt.subplot(3, 2, 2)
-    plt.plot(tiempos, df['Y_metros'], marker='o',
-             color='hotpink', label='Posición en Y Real')
-    plt.plot(tiempos, posiciones_mruv, color='lightskyblue',
-             label='Posición en Y (teórico)')
-    plt.plot(tiempos, ajuste_pos_Y, '--',
-             color='darkviolet', label='Ajuste parabólico')
-    plt.title('Posición en Y vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Altura (m)')
-    plt.grid()
-    plt.legend()
-
-    # Velocidad en X
-    plt.subplot(3, 2, 3)
-    plt.plot(tiempos, df['Velocidad_X'], marker='o',
-             label='Velocidad en X Real')
-    plt.title('Velocidad en X vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Velocidad X (m/s)')
-    plt.grid()
-    plt.legend()
-
-    # Velocidad en Y
-    plt.subplot(3, 2, 4)
-    plt.plot(tiempos, df['Velocidad_Y'], marker='o',
-             color='hotpink', label='Velocidad en Y Real')
-    plt.plot(tiempos, velocidades_mruv, color='lightskyblue',
-             label='Velocidad en Y (teórico)')
-    plt.plot(tiempos, ajuste_vel_Y, '--',
-             color='darkviolet', label='Ajuste lineal')
-    plt.title('Velocidad en Y vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Velocidad Y (m/s)')
-    plt.grid()
-    plt.legend()
-
-    # Aceleración en X
-    plt.subplot(3, 2, 5)
-    plt.plot(tiempos, df['Aceleracion_X'], marker='o',
-             label='Aceleración en X Real')
-    plt.title('Aceleración en X vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Aceleración X (m/s²)')
-    plt.grid()
-    plt.legend()
-
-    # Aceleración en Y
-    plt.subplot(3, 2, 6)
-    plt.plot(tiempos, df['Aceleracion_Y'], marker='o',
-             color='hotpink', label='Aceleración en Y Real')
-    plt.plot(tiempos, aceleraciones_mruv, color='lightskyblue',
-             label='Aceleración en Y (teórico)')
-    plt.plot(tiempos, ajuste_ace_Y, '--',
-             color='darkviolet', label='Ajuste constante')
-    plt.title('Aceleración en Y vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Aceleración Y (m/s²)')
-    plt.grid()
-    plt.legend()
-    print(f"*Aceleracion  promedio en Y en base al csv:" ,df['Aceleracion_Y'].mean())
-    print(f"*Velocidad promedio en Y en base al csv:" ,df['Velocidad_Y'].mean())
-    plt.tight_layout()
-    plt.show()
-    
-
-
-
-     
 
 
 if __name__ == "__main__":
