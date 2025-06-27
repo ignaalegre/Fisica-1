@@ -4,6 +4,8 @@ import pandas as pd
 from scipy.optimize import curve_fit
 import tkinter as tk
 from tkinter import ttk
+import plotly.graph_objects as go
+import panel as pn
 
 
 def main():
@@ -29,7 +31,8 @@ def main():
         print(f"Aceleración promedio basado en el csv: {acel_promedio_y}")
         print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
 
-        graficar_resultados(ruta, ALTURA_CAIDA)
+        tabs = graficar_resultados(ruta, ALTURA_CAIDA)
+        tabs.show()
 
     # Crear GUI simple con tkinter
     root = tk.Tk()
@@ -144,6 +147,9 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
     # Crear el eje de tiempo basado en los frames
     tiempos = df['Frame'] / 60
 
+    # Crear una figura con frames para el slider
+    fig = go.Figure()
+
     # Calcular las posiciones, velocidades y aceleraciones según MRUV
     posiciones_mruv, velocidades_mruv, aceleraciones_mruv = calcular_mruv(
         tiempos, altura_caida)
@@ -157,89 +163,73 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
     print(f"Velocidad Y: m={coef_vel_Y[0]:.3f}, b={coef_vel_Y[1]:.3f}")
     print(f"Aceleración Y constante: {coef_ace_Y[0]:.3f}")
 
-    plt.figure(figsize=(12, 18))
+    def crear_figura(titulo, trazas, xlabel, ylabel):
+        fig = go.Figure()
+        for traza in trazas:
+            fig.add_trace(traza)
+        fig.update_layout(
+            title=titulo,
+            xaxis_title=xlabel,
+            yaxis_title=ylabel,
+            height=500
+        )
+        return pn.pane.Plotly(fig, config={'responsive': True})
 
-    # Crear una figura más grande para más subplots
-    fig, axs = plt.subplots(4, 2, figsize=(14, 20))
-    axs = axs.flatten()
+    tabs = pn.Tabs(
+        ("Posición en X", crear_figura("Posición en X vs Tiempo", [
+            go.Scatter(x=tiempos, y=df['X_metros'],
+                       mode='lines+markers', name='Real')
+        ], "Tiempo (s)", "Posición X (m)")),
 
-    # Posición en X
-    plt.subplot(3, 2, 1)
-    plt.plot(tiempos, df['X_metros'], marker='o', label='Posición en X Real')
-    plt.title('Posición en X vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Posición X (m)')
-    plt.grid()
-    plt.legend()
+        ("Posición en Y", crear_figura("Posición en Y vs Tiempo", [
+            go.Scatter(x=tiempos, y=df['Y_metros'],
+                       mode='lines+markers', name='Real'),
+            go.Scatter(x=tiempos, y=posiciones_mruv,
+                       mode='lines', name='MRUV'),
+            go.Scatter(x=tiempos, y=ajuste_pos_Y, mode='lines',
+                       name='Ajuste parabólico', line=dict(dash='dash'))
+        ], "Tiempo (s)", "Altura Y (m)")),
 
-    # Posición en Y
-    plt.subplot(3, 2, 2)
-    plt.plot(tiempos, df['Y_metros'], marker='o',
-             color='hotpink', label='Posición en Y Real')
-    plt.plot(tiempos, posiciones_mruv, color='lightskyblue',
-             label='Posición en Y (teórico)')
-    plt.plot(tiempos, ajuste_pos_Y, '--',
-             color='darkviolet', label='Ajuste parabólico')
-    plt.title('Posición en Y vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Altura (m)')
-    plt.grid()
-    plt.legend()
+        ("Velocidad en X", crear_figura("Velocidad en X vs Tiempo", [
+            go.Scatter(x=tiempos, y=df['Velocidad_X'],
+                       mode='lines+markers', name='Real')
+        ], "Tiempo (s)", "Velocidad X (m/s)")),
 
-    # Velocidad en X
-    plt.subplot(3, 2, 3)
-    plt.plot(tiempos, df['Velocidad_X'], marker='o',
-             label='Velocidad en X Real')
-    plt.title('Velocidad en X vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Velocidad X (m/s)')
-    plt.grid()
-    plt.legend()
+        ("Velocidad en Y", crear_figura("Velocidad en Y vs Tiempo", [
+            go.Scatter(x=tiempos, y=df['Velocidad_Y'],
+                       mode='lines+markers', name='Real'),
+            go.Scatter(x=tiempos, y=velocidades_mruv,
+                       mode='lines', name='MRUV'),
+            go.Scatter(x=tiempos, y=ajuste_vel_Y, mode='lines',
+                       name='Ajuste lineal', line=dict(dash='dash'))
+        ], "Tiempo (s)", "Velocidad Y (m/s)")),
 
-    # Velocidad en Y
-    plt.subplot(3, 2, 4)
-    plt.plot(tiempos, df['Velocidad_Y'], marker='o',
-             color='hotpink', label='Velocidad en Y Real')
-    plt.plot(tiempos, velocidades_mruv, color='lightskyblue',
-             label='Velocidad en Y (teórico)')
-    plt.plot(tiempos, ajuste_vel_Y, '--',
-             color='darkviolet', label='Ajuste lineal')
-    plt.title('Velocidad en Y vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Velocidad Y (m/s)')
-    plt.grid()
-    plt.legend()
+        ("Aceleración en X", crear_figura("Aceleración en X vs Tiempo", [
+            go.Scatter(x=tiempos, y=df['Aceleracion_X'],
+                       mode='lines+markers', name='Real')
+        ], "Tiempo (s)", "Aceleración X (m/s²)")),
 
-    # Aceleración en X
-    plt.subplot(3, 2, 5)
-    plt.plot(tiempos, df['Aceleracion_X'], marker='o',
-             label='Aceleración en X Real')
-    plt.title('Aceleración en X vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Aceleración X (m/s²)')
-    plt.grid()
-    plt.legend()
+        ("Aceleración en Y", crear_figura("Aceleración en Y vs Tiempo", [
+            go.Scatter(x=tiempos, y=df['Aceleracion_Y'],
+                       mode='lines+markers', name='Real'),
+            go.Scatter(x=tiempos, y=aceleraciones_mruv,
+                       mode='lines', name='MRUV'),
+            go.Scatter(x=tiempos, y=ajuste_ace_Y, mode='lines',
+                       name='Ajuste constante', line=dict(dash='dash'))
+        ], "Tiempo (s)", "Aceleración Y (m/s²)")),
 
-    # Aceleración en Y
-    plt.subplot(3, 2, 6)
-    plt.plot(tiempos, df['Aceleracion_Y'], marker='o',
-             color='hotpink', label='Aceleración en Y Real')
-    plt.plot(tiempos, aceleraciones_mruv, color='lightskyblue',
-             label='Aceleración en Y (teórico)')
-    plt.plot(tiempos, ajuste_ace_Y, '--',
-             color='darkviolet', label='Ajuste constante')
-    plt.title('Aceleración en Y vs Tiempo')
-    plt.xlabel('Tiempo (s)')
-    plt.ylabel('Aceleración Y (m/s²)')
-    plt.grid()
-    plt.legend()
-    print(f"*Aceleracion  promedio en Y en base al csv:",
-          df['Aceleracion_Y'].mean())
-    print(f"*Velocidad promedio en Y en base al csv:",
-          df['Velocidad_Y'].mean())
+        ("Fuerza vs Velocidad", crear_figura("Fuerza de Rozamiento vs Velocidad", [
+            go.Scatter(x=df['Velocidad_Y'], y=df[
+                       'Fuerza_Rozamiento_Y'], mode='lines+markers', name='Datos')
+        ], "Velocidad Y (m/s)", "Fuerza (N)")),
 
-    plt.tight_layout()
-    plt.show()
+        ("Fuerza vs Tiempo", crear_figura("Fuerza de Rozamiento vs Tiempo", [
+            go.Scatter(x=tiempos, y=df['Fuerza_Rozamiento_Y'],
+                       mode='lines+markers', name='Fuerza')
+        ], "Tiempo (s)", "Fuerza (N)")),
+    )
+
+    return tabs
 
 
 if __name__ == "__main__":
