@@ -30,7 +30,8 @@ def main():
         print(f"Aceleración promedio basado en el csv: {acel_promedio_y}")
         print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
 
-        tabs = graficar_resultados(ruta, ALTURA_CAIDA)
+        k = estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
+        tabs = graficar_resultados(ruta, ALTURA_CAIDA, MASA_OBJETO, k)
         tabs.show()
 
     # Crear GUI simple con tkinter
@@ -87,6 +88,8 @@ def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
     print(f"Constante viscosa estimada con ajuste lineal: k = {k:.4f} kg/s")
     print(f"Coeficiente de correlación R² = {r2:.4f}")
 
+    return k
+
 
 def estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto):
     # Recortar posibles extremos ruidosos
@@ -109,6 +112,8 @@ def estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto):
     print(
         f"Constante viscosa estimada con ajuste parabólico: k = {k:.4f} kg/s")
     print(f"Coeficiente de correlación R² = {r2:.4f}")
+
+    return k
 
 
 def velocidad_promedio_y(df):
@@ -135,7 +140,38 @@ def calcular_mruv(tiempos, altura_caida):
     return posiciones_mruv, velocidades_mruv, aceleraciones_mruv
 
 
-def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
+def calcular_modelo_viscoso(tiempos, masa, k, altura_inicial):
+    """
+    Derivación:
+    Por 2da ley de Newton:
+        ∑F = m·a → -mg + (-kv) = m·dv/dt
+        dv/dt + (k/m)v = -g   → EDO lineal
+
+    Solución por factor integrante:
+        v(t) = (mg/k)(1 - e^(-k·t/m))
+
+    Luego, integrando para y(t):
+        y(t) = y0 - (mg/k)t + (m²g/k²)(1 - e^(-k·t/m))
+
+    Parámetros:
+        - tiempos: np.array con los valores de tiempo
+        - masa: masa del objeto (kg)
+        - k: constante de rozamiento viscoso (kg/s)
+        - altura_inicial: y0 (m)
+
+    Devuelve:
+        - velocidades según el modelo con rozamiento viscoso
+        - posiciones según el mismo modelo
+    """
+    g = 9.81
+    v_terminal = masa * g / k
+    vel = -v_terminal * (1 - np.exp(-k * tiempos / masa))
+    pos = altura_inicial + v_terminal * tiempos - \
+        (masa * v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
+    return vel, pos
+
+
+def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes=6):
     # Leer el archivo CSV con los datos completos
     df = pd.read_csv(csv_path)
 
@@ -152,6 +188,11 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
     # Calcular las posiciones, velocidades y aceleraciones según MRUV
     posiciones_mruv, velocidades_mruv, aceleraciones_mruv = calcular_mruv(
         tiempos, altura_caida)
+
+    velocidades_viscoso, posiciones_viscoso = calcular_modelo_viscoso(
+        tiempos, masa, k_estimado, altura_caida
+    )
+
     ajuste_pos_Y, coef_pos_Y = ajuste_parabolico(tiempos, df['Y_metros'])
     ajuste_vel_Y, coef_vel_Y = ajuste_lineal(tiempos, df['Velocidad_Y'])
     ajuste_ace_Y, coef_ace_Y = ajuste_constante(tiempos, df['Aceleracion_Y'])
@@ -186,7 +227,9 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
             go.Scatter(x=tiempos, y=posiciones_mruv,
                        mode='lines', name='MRUV'),
             go.Scatter(x=tiempos, y=ajuste_pos_Y, mode='lines',
-                       name='Ajuste parabólico', line=dict(dash='dash'))
+                       name='Ajuste parabólico', line=dict(dash='dash')),
+            go.Scatter(x=tiempos, y=posiciones_viscoso, mode='lines',
+                       name='Modelo viscoso', line=dict(dash='dot', color='magenta'))
         ], "Tiempo (s)", "Altura Y (m)")),
 
         ("Velocidad en X", crear_figura("Velocidad en X vs Tiempo", [
@@ -200,7 +243,10 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
             go.Scatter(x=tiempos, y=velocidades_mruv,
                        mode='lines', name='MRUV'),
             go.Scatter(x=tiempos, y=ajuste_vel_Y, mode='lines',
-                       name='Ajuste lineal', line=dict(dash='dash'))
+                       name='Ajuste lineal', line=dict(dash='dash')),
+            go.Scatter(x=tiempos, y=velocidades_viscoso, mode='lines',
+                       name='Modelo viscoso', line=dict(dash='dot', color='magenta'))
+
         ], "Tiempo (s)", "Velocidad Y (m/s)")),
 
         ("Aceleración en X", crear_figura("Aceleración en X vs Tiempo", [
