@@ -182,9 +182,6 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes
     # Crear el eje de tiempo basado en los frames
     tiempos = df['Frame'] / 60
 
-    # Crear una figura con frames para el slider
-    fig = go.Figure()
-
     # Calcular las posiciones, velocidades y aceleraciones según MRUV
     posiciones_mruv, velocidades_mruv, aceleraciones_mruv = calcular_mruv(
         tiempos, altura_caida)
@@ -272,6 +269,13 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes
             go.Scatter(x=tiempos, y=df['Fuerza_Rozamiento_Y'],
                        mode='lines+markers', name='Fuerza')
         ], "Tiempo (s)", "Fuerza (N)")),
+
+        ("Impulso vs Tiempo", crear_figura("Impulso vs Tiempo", [
+            go.Scatter(x=tiempos, y=df['Impulso'],
+                       mode='lines+markers', name='Impulso Experimental', line=dict(color='lightgreen'))
+        ], "Tiempo (s)", "Impulso (N·s)")),
+
+
     )
 
     return tabs

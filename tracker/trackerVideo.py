@@ -37,6 +37,8 @@ def main():
     # Calcular fuerza de rozamiento
     df = calcular_fuerza_rozamiento(df, MASA_OBJETO)
 
+    df = calcular_impulso_experimental(df, FPS)
+
     video.release()
     cv2.destroyAllWindows()
 
@@ -206,17 +208,6 @@ def ajuste_constante(t, y):
     return modelo(t, *params), params
 
 
-def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
-    # Recortar posibles extremos ruidosos
-    df = df.iloc[0:-5] if len(df) > 10 else df.copy()
-    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
-    vel_y = df['Velocidad_Y'].values
-    acel_y = df['Aceleracion_Y'].values
-    _, (m, b) = ajuste_lineal(vel_y, acel_y)
-    k = -masa_objeto * m  # porque m ≈ -k/m
-    return k
-
-
 # CINEMATICA
 
 def calcular_velocidades_aceleraciones(csv_path, fps):
@@ -255,7 +246,27 @@ def calcular_velocidades_aceleraciones(csv_path, fps):
 
     return df
 
+
+def velocidad_promedio_y(df):
+    return df['Velocidad_Y'].mean()
+
+
+def aceleración_promedio_y(df):
+    return df['Aceleracion_Y'].mean()
+
+
 # DINAMICA
+
+
+def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
+    # Recortar posibles extremos ruidosos
+    df = df.iloc[0:-5] if len(df) > 10 else df.copy()
+    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
+    vel_y = df['Velocidad_Y'].values
+    acel_y = df['Aceleracion_Y'].values
+    _, (m, b) = ajuste_lineal(vel_y, acel_y)
+    k = -masa_objeto * m  # porque m ≈ -k/m
+    return k
 
 
 def calcular_fuerza_rozamiento(df, masa_objeto):
@@ -267,30 +278,17 @@ def calcular_fuerza_rozamiento(df, masa_objeto):
     return df
 
 
-def velocidad_promedio_y(df):
-    return df['Velocidad_Y'].mean()
+# ENERGÍA
 
 
-def aceleración_promedio_y(df):
-    return df['Aceleracion_Y'].mean()
-
-# Función para calcular la caída en MRUV
-
-
-def calcular_mruv(tiempos, altura_caida):
-    # Aceleración por la gravedad
-    g = 9.81  # m/s^2
-    v0 = 0  # Velocidad inicial
-    y0 = altura_caida  # Altura inicial
-
-    # Calcular la posición, velocidad y aceleración en el tiempo para MRUV
-    # Suponiendo caída libre desde una altura
-    posiciones_mruv = y0 - (1/2) * g * tiempos**2
-    velocidades_mruv = -g * tiempos  # Velocidad en caída libre
-    # Aceleración constante en el MRUV
-    aceleraciones_mruv = np.full_like(tiempos, -g)
-
-    return posiciones_mruv, velocidades_mruv, aceleraciones_mruv
+def calcular_impulso_experimental(df, fps):
+    fuerza = df['Fuerza_Rozamiento_Y'].values
+    dt = 1.0 / fps
+    impulso = np.cumsum(fuerza) * dt
+    df['Impulso'] = impulso
+    df.to_csv('data/trayectoria_globo_grande.csv', index=False)
+    print(f"Impulso experimental total = {impulso[-1]:.4f} N·s")
+    return df
 
 
 if __name__ == "__main__":

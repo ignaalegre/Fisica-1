@@ -48,7 +48,7 @@ PARTE 2: DINAMICA
 
 [ ✅ ] Calculo del modelo viscoso a partir de la 2da ley (lo que pidió marcos)
 
-[ 🚫 ] Para energia: Integrar F en funcion del tiempo, eso va a ser impulso, y podemos saber el impulso que nos va a estar haciendo la fuerza viscosa.
+[ ✅ ] Para energia: Integrar F en funcion del tiempo, eso va a ser impulso, y podemos saber el impulso que nos va a estar haciendo la fuerza viscosa.
 
 [ 🚫 ]
 
