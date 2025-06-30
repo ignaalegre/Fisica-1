@@ -8,7 +8,7 @@ from scipy.optimize import curve_fit
 
 def main():
     # --- Parámetros dados ---
-    VIDEO_PATH = 'media/oso_recortados/oso_globo_grande.mov'
+    VIDEO_PATH = 'media/oso_recortados/oso_globo_chico.mov'
     ALTURA_CAIDA = 4.28  # en metros
     FPS = 60
     MASA_OBJETO = 0.1
@@ -239,7 +239,7 @@ def calcular_velocidades_aceleraciones(csv_path, fps):
     df.fillna(0, inplace=True)
 
     # Guardar el DataFrame actualizado en un nuevo archivo CSV
-    output_csv_path = 'data/trayectoria_globo_grande.csv'
+    output_csv_path = 'tracker/csv_generados/trayectoria_objeto_completa.csv'
     df.to_csv(output_csv_path, index=False)
     print(
         f"Archivo con velocidades y aceleraciones guardado en: {output_csv_path}")
@@ -273,8 +273,8 @@ def calcular_fuerza_rozamiento(df, masa_objeto):
     k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
     df['Fuerza_Rozamiento_Y'] = -k * df['Velocidad_Y']
     # Guardar el CSV actualizado con la fuerza de rozamiento incluida
-    df.to_csv('data/trayectoria_globo_grande.csv', index=False)
-    print("Archivo actualizado con fuerza de rozamiento guardado en data/trayectoria_globo_grande.csv")
+    df.to_csv('tracker/csv_generados/trayectoria_objeto_completa.csv', index=False)
+    print("Archivo actualizado con fuerza de rozamiento guardado en tracker/csv_generados/trayectoria_objeto_completa.csv")
     return df
 
 
@@ -286,7 +286,7 @@ def calcular_impulso_experimental(df, fps):
     dt = 1.0 / fps
     impulso = np.cumsum(fuerza) * dt
     df['Impulso'] = impulso
-    df.to_csv('data/trayectoria_globo_grande.csv', index=False)
+    df.to_csv('tracker/csv_generados/trayectoria_objeto_completa.csv', index=False)
     print(f"Impulso experimental total = {impulso[-1]:.4f} N·s")
     return df
 

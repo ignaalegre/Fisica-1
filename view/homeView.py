@@ -166,8 +166,8 @@ def calcular_modelo_viscoso(tiempos, masa, k, altura_inicial):
     g = 9.81
     v_terminal = masa * g / k
     vel = -v_terminal * (1 - np.exp(-k * tiempos / masa))
-    pos = altura_inicial + v_terminal * tiempos - \
-        (masa * v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
+    pos = altura_inicial - v_terminal * tiempos - \
+        (masa * -v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
     return vel, pos
 
 
