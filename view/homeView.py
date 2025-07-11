@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import ttk
 import plotly.graph_objects as go
 import panel as pn
+import threading
 
 
 def main():
@@ -19,20 +20,23 @@ def main():
     }
 
     def on_selection(event):
-        seleccion = combo.get()
-        ruta = archivos[seleccion]
-        df = pd.read_csv(ruta)
+        def task():
+            seleccion = combo.get()
+            ruta = archivos[seleccion]
+            df = pd.read_csv(ruta)
 
-        estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
-        estimar_constante_viscosa_con_ajuste_cuadrático(df, MASA_OBJETO)
-        vel_promedio_y = velocidad_promedio_y(df)
-        acel_promedio_y = aceleración_promedio_y(df)
-        print(f"Aceleración promedio basado en el csv: {acel_promedio_y}")
-        print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
+            estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
+            estimar_constante_viscosa_con_ajuste_cuadrático(df, MASA_OBJETO)
+            vel_promedio_y = velocidad_promedio_y(df)
+            acel_promedio_y = aceleración_promedio_y(df)
+            print(f"Aceleración promedio basado en el csv: {acel_promedio_y}")
+            print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
 
-        k = estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
-        tabs = graficar_resultados(ruta, ALTURA_CAIDA, MASA_OBJETO, k)
-        tabs.show()
+            k = estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
+            tabs = graficar_resultados(ruta, ALTURA_CAIDA, MASA_OBJETO, k)
+            tabs.show()
+
+        threading.Thread(target=task).start()
 
     # Crear GUI simple con tkinter
     root = tk.Tk()
