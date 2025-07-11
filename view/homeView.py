@@ -67,6 +67,24 @@ def ajuste_constante(t, y):
     return modelo(t, *params), params
 
 
+def ajuste_posicion_viscoso(t, y, masa, altura_inicial):
+    def modelo_posicion(t, k):
+        g = 9.81
+        v_terminal = masa * -g / k
+        return altura_inicial + v_terminal * t - (masa * v_terminal / k) * (1 - np.exp(-k * t / masa))
+    params, _ = curve_fit(modelo_posicion, t, y)
+    return modelo_posicion(t, *params), params
+
+
+def ajuste_velocidad_viscoso(t, y, masa):
+    def modelo_velocidad(t, k):
+        g = 9.81
+        v_terminal = masa * g / k
+        return -v_terminal * (1 - np.exp(-k * t / masa))
+    params, _ = curve_fit(modelo_velocidad, t, y)
+    return modelo_velocidad(t, *params), params
+
+
 def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
     # Recortar posibles extremos ruidosos
     df = df.iloc[0:-5] if len(df) > 10 else df.copy()
@@ -148,7 +166,7 @@ def calcular_modelo_viscoso(tiempos, masa, k, altura_inicial):
         dv/dt + (k/m)v = -g   → EDO lineal
 
     Solución por factor integrante:
-        v(t) = (mg/k)(1 - e^(-k·t/m))
+        v(t) = (m*-g/k)(1 - e^(-k·t/m))
 
     Luego, integrando para y(t):
         y(t) = y0 - (mg/k)t + (m²g/k²)(1 - e^(-k·t/m))
@@ -164,8 +182,8 @@ def calcular_modelo_viscoso(tiempos, masa, k, altura_inicial):
         - posiciones según el mismo modelo
     """
     g = 9.81
-    v_terminal = masa * g / k
-    vel = -v_terminal * (1 - np.exp(-k * tiempos / masa))
+    v_terminal = masa * -g / k
+    vel = v_terminal * (1 - np.exp(-k * tiempos / masa))
     pos = altura_inicial + v_terminal * tiempos - \
         (masa * v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
     return vel, pos
@@ -190,14 +208,17 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes
         tiempos, masa, k_estimado, altura_caida
     )
 
-    ajuste_pos_Y, coef_pos_Y = ajuste_parabolico(tiempos, df['Y_metros'])
-    ajuste_vel_Y, coef_vel_Y = ajuste_lineal(tiempos, df['Velocidad_Y'])
+    ajuste_pos_Y, coef_pos_Y = ajuste_posicion_viscoso(
+        tiempos, df['Y_metros'].values, masa, altura_caida)
+    ajuste_vel_Y, coef_vel_Y = ajuste_velocidad_viscoso(
+        tiempos, df['Velocidad_Y'].values, masa)
     ajuste_ace_Y, coef_ace_Y = ajuste_constante(tiempos, df['Aceleracion_Y'])
 
     print("\n--- Ajustes ---")
     print(
-        f"Posición Y: a={coef_pos_Y[0]:.3f}, b={coef_pos_Y[1]:.3f}, c={coef_pos_Y[2]:.3f}")
-    print(f"Velocidad Y: m={coef_vel_Y[0]:.3f}, b={coef_vel_Y[1]:.3f}")
+        f"Posición Y: k={coef_pos_Y[0]:.3f}")
+    print(f"Velocidad Y: k={coef_vel_Y[0]:.3f}")
+
     print(f"Aceleración Y constante: {coef_ace_Y[0]:.3f}")
 
     def crear_figura(titulo, trazas, xlabel, ylabel):
@@ -224,7 +245,7 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes
             go.Scatter(x=tiempos, y=posiciones_mruv,
                        mode='lines', name='MRUV'),
             go.Scatter(x=tiempos, y=ajuste_pos_Y, mode='lines',
-                       name='Ajuste parabólico', line=dict(dash='dash')),
+                       name='Ajuste al modelo viscoso', line=dict(dash='dash')),
             go.Scatter(x=tiempos, y=posiciones_viscoso, mode='lines',
                        name='Modelo viscoso', line=dict(dash='dot', color='magenta'))
         ], "Tiempo (s)", "Altura Y (m)")),
@@ -240,7 +261,7 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes
             go.Scatter(x=tiempos, y=velocidades_mruv,
                        mode='lines', name='MRUV'),
             go.Scatter(x=tiempos, y=ajuste_vel_Y, mode='lines',
-                       name='Ajuste lineal', line=dict(dash='dash')),
+                       name='Ajuste al modelo viscoso', line=dict(dash='dash')),
             go.Scatter(x=tiempos, y=velocidades_viscoso, mode='lines',
                        name='Modelo viscoso', line=dict(dash='dot', color='magenta'))
 
@@ -261,8 +282,8 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes
         ], "Tiempo (s)", "Aceleración Y (m/s²)")),
 
         ("Fuerza vs Velocidad", crear_figura("Fuerza de Rozamiento vs Velocidad", [
-            go.Scatter(x=df['Velocidad_Y'], y=df[
-                       'Fuerza_Rozamiento_Y'], mode='lines+markers', name='Datos')
+            go.Scatter(x=df['Velocidad_Y'], y=df['Fuerza_Rozamiento_Y'],
+                       mode='lines+markers', name='Datos')
         ], "Velocidad Y (m/s)", "Fuerza (N)")),
 
         ("Fuerza vs Tiempo", crear_figura("Fuerza de Rozamiento vs Tiempo", [
