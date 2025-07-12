@@ -51,7 +51,7 @@ def main():
             print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
 
             k = estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
-            tabs = graficar_resultados(ruta_csv, ALTURA_CAIDA, MASA_OBJETO, k, seleccion)
+            panel,tabs = graficar_resultados(ruta_csv, ALTURA_CAIDA, MASA_OBJETO, k, seleccion)
             sys.stdout = sys_stdout_original
             resumen_texto = buffer.getvalue()
             resumen_pane = pn.pane.Markdown(f"```\n{resumen_texto}\n```", sizing_mode='stretch_width')
@@ -385,7 +385,7 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, titulo, recort
     )
 
     header = pn.pane.Markdown(f"# {titulo}", sizing_mode='stretch_width')
-    return pn.Column(header, tabs, sizing_mode='stretch_both')
+    return pn.Column(header, tabs, sizing_mode='stretch_both'), tabs
 
 
 if __name__ == "__main__":
