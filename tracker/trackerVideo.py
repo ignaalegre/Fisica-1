@@ -345,37 +345,6 @@ def estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto):
     return k
 
 
-def calcular_modelo_viscoso(tiempos, masa, k, altura_inicial):
-    """
-    Derivación:
-    Por 2da ley de Newton:
-        ∑F = m·a → -mg + (-kv) = m·dv/dt
-        dv/dt + (k/m)v = -g   → EDO lineal
-
-    Solución por factor integrante:
-        v(t) = (m*-g/k)(1 - e^(-k·t/m))
-
-    Luego, integrando para y(t):
-        y(t) = y0 - (mg/k)t + (m²g/k²)(1 - e^(-k·t/m))
-
-    Parámetros:
-        - tiempos: np.array con los valores de tiempo
-        - masa: masa del objeto (kg)
-        - k: constante de rozamiento viscoso (kg/s)
-        - altura_inicial: y0 (m)
-
-    Devuelve:
-        - velocidades según el modelo con rozamiento viscoso
-        - posiciones según el mismo modelo
-    """
-    g = 9.81
-    v_terminal = masa * -g / k
-    vel = v_terminal * (1 - np.exp(-k * tiempos / masa))
-    pos = altura_inicial + v_terminal * tiempos - \
-        (masa * v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
-    return vel, pos
-
-
 def calcular_fuerza_rozamiento(csv_path, df, masa_objeto):
     k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
     df['Fuerza_Rozamiento_Y'] = -k * df['Velocidad_Y']
