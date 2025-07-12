@@ -35,9 +35,50 @@ def main():
         'tracker/csv_generados/trayectoria_objeto_metros.csv', FPS)
 
     # Calcular fuerza de rozamiento
-    df = calcular_fuerza_rozamiento(df, MASA_OBJETO)
+    calcular_fuerza_rozamiento(df, MASA_OBJETO)
+    # Calcular constante viscosa
+    k_estimado = estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
+    tiempos = df['Frame'] / FPS
+    calcular_modelo_viscoso(
+        df, tiempos.values, MASA_OBJETO, k_estimado, ALTURA_CAIDA)
+    ajuste_pos_Y, coef_pos_Y = ajuste_posicion_viscoso(
+        tiempos, df['Y_metros'].values, MASA_OBJETO, ALTURA_CAIDA)
+    ajuste_vel_Y, coef_vel_Y = ajuste_velocidad_viscoso(
+        tiempos, df['Velocidad_Y'].values, MASA_OBJETO)
+    ajuste_ace_Y, coef_ace_Y = ajuste_constante(tiempos, df['Aceleracion_Y'])
 
-    df = calcular_impulso_experimental(df, FPS)
+    print("\n--- Ajustes ---")
+    print(f"Posición Y: k={coef_pos_Y[0]:.3f}")
+    print(f"Velocidad Y: k={coef_vel_Y[0]:.3f}")
+    print(f"Aceleración Y constante: {coef_ace_Y[0]:.3f}")
+
+    df['Posicion_Ajuste_Viscoso_Y'] = ajuste_pos_Y
+    df['Velocidad_Ajuste_Viscoso_Y'] = ajuste_vel_Y
+    df['Aceleracion_Ajuste_Viscoso_Y'] = ajuste_vel_Y
+
+    calcular_impulso_experimental(df, FPS)
+    E_pot_real, E_cin_real, E_mec_real = calculos_Energia(
+        df['Y_metros'], MASA_OBJETO, df['Velocidad_Y'])
+
+    df['Energia_Potencial'] = E_pot_real
+    df['Energia_Cinetica'] = E_cin_real
+    df['Energia_Mecanica'] = E_mec_real
+
+    E_pot_teo, E_cin_teo, E_mec_teo = calculos_Energia(
+        df['Posicion_Y_Teorico'], MASA_OBJETO, df['Velocidad_Y_Teorico'])
+
+    df['Energia_Potencial_Teorico'] = E_pot_teo
+    df['Energia_Cinetica_Teorico'] = E_cin_teo
+    df['Energia_Mecanica_Teorico'] = E_mec_teo
+
+    E_pot_ajuste, E_cin_ajuste, E_mec_ajuste = calculos_Energia(
+        df['Posicion_Ajuste_Viscoso_Y'], MASA_OBJETO, df['Velocidad_Ajuste_Viscoso_Y'])
+
+    df['Energia_Potencial_Ajuste'] = E_pot_ajuste
+    df['Energia_Cinetica_Ajuste'] = E_cin_ajuste
+    df['Energia_Mecanica_Ajuste'] = E_mec_ajuste
+
+    df.to_csv('tracker/csv_generados/trayectoria_objeto_completa.csv', index=False)
 
     video.release()
     cv2.destroyAllWindows()
@@ -208,6 +249,24 @@ def ajuste_constante(t, y):
     return modelo(t, *params), params
 
 
+def ajuste_posicion_viscoso(t, y, masa, altura_inicial):
+    def modelo_posicion(t, k):
+        g = 9.81
+        v_terminal = masa * -g / k
+        return altura_inicial + v_terminal * t - (masa * v_terminal / k) * (1 - np.exp(-k * t / masa))
+    params, _ = curve_fit(modelo_posicion, t, y)
+    return modelo_posicion(t, *params), params
+
+
+def ajuste_velocidad_viscoso(t, y, masa):
+    def modelo_velocidad(t, k):
+        g = 9.81
+        v_terminal = masa * -g / k
+        return v_terminal * (1 - np.exp(-k * t / masa))
+    params, _ = curve_fit(modelo_velocidad, t, y)
+    return modelo_velocidad(t, *params), params
+
+
 # CINEMATICA
 
 def calcular_velocidades_aceleraciones(csv_path, fps):
@@ -259,8 +318,6 @@ def aceleración_promedio_y(df):
 
 
 def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
-    # Recortar posibles extremos ruidosos
-    df = df.iloc[0:-5] if len(df) > 10 else df.copy()
     # Realizar el ajuste lineal a_Y = a0 + b * v_Y
     vel_y = df['Velocidad_Y'].values
     acel_y = df['Aceleracion_Y'].values
@@ -269,13 +326,61 @@ def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
     return k
 
 
+def estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto):
+    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
+    vel_y = df['Velocidad_Y'].values
+    acel_y = df['Aceleracion_Y'].values
+    ajustado, (a, b, c) = ajuste_parabolico(vel_y, acel_y)
+    k = -masa_objeto * b  # porque b ≈ -k/m
+    # Calcular R²
+    ss_res = np.sum((acel_y - ajustado) ** 2)
+    ss_tot = np.sum((acel_y - np.mean(acel_y)) ** 2)
+    r2 = 1 - ss_res / ss_tot
+
+    print(f"Modelo ajustado: a_Y = {c:.3f} + ({b:.3f})*v_Y + ({a:.3f})*v_Y²")
+    print(
+        f"Constante viscosa estimada con ajuste parabólico: k = {k:.4f} kg/s")
+    print(f"Coeficiente de correlación R² = {r2:.4f}")
+
+    return k
+
+
 def calcular_fuerza_rozamiento(df, masa_objeto):
     k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
     df['Fuerza_Rozamiento_Y'] = -k * df['Velocidad_Y']
-    # Guardar el CSV actualizado con la fuerza de rozamiento incluida
-    df.to_csv('tracker/csv_generados/trayectoria_objeto_completa.csv', index=False)
     print("Archivo actualizado con fuerza de rozamiento guardado en tracker/csv_generados/trayectoria_objeto_completa.csv")
-    return df
+
+
+def calcular_modelo_viscoso(df, tiempos, masa, k, altura_inicial):
+    """
+    Derivación:
+    Por 2da ley de Newton:
+        ∑F = m·a → -mg + (-kv) = m·dv/dt
+        dv/dt + (k/m)v = -g   → EDO lineal
+
+    Solución por factor integrante:
+        v(t) = (m*-g/k)(1 - e^(-k·t/m))
+
+    Luego, integrando para y(t):
+        y(t) = y0 - (mg/k)t + (m²g/k²)(1 - e^(-k·t/m))
+
+    Parámetros:
+        - tiempos: np.array con los valores de tiempo
+        - masa: masa del objeto (kg)
+        - k: constante de rozamiento viscoso (kg/s)
+        - altura_inicial: y0 (m)
+
+    Devuelve:
+        - velocidades según el modelo con rozamiento viscoso
+        - posiciones según el mismo modelo
+    """
+    g = 9.81
+    v_terminal = masa * -g / k
+    vel = v_terminal * (1 - np.exp(-k * tiempos / masa))
+    pos = altura_inicial + v_terminal * tiempos - \
+        (masa * v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
+    df['Velocidad_Y_Teorico'] = vel
+    df['Posicion_Y_Teorico'] = pos
 
 
 # ENERGÍA
@@ -286,9 +391,28 @@ def calcular_impulso_experimental(df, fps):
     dt = 1.0 / fps
     impulso = np.cumsum(fuerza) * dt
     df['Impulso'] = impulso
-    df.to_csv('tracker/csv_generados/trayectoria_objeto_completa.csv', index=False)
     print(f"Impulso experimental total = {impulso[-1]:.4f} N·s")
-    return df
+
+
+def calculos_Energia(altura, masa, velocidad):
+    """
+    Calcula la energía potencial gravitacional y cinética de un objeto en cada instante.
+
+    Parámetros:
+        - altura: Altura del objeto sobre el nivel de referencia (m).
+        - masa: Masa del objeto (kg).
+        - velocidad: Velocidad del objeto en cada instante (m/s)).
+
+    Devuelve:
+        E_potencial (gravitacional con respecto al tiempo),
+        E_cinetica con respecto al tiempo
+        E_mecanica (que es la suma de las dos anteriores)
+    """
+    g = 9.81  # Aceleración gravitacional en m/s²
+    E_Potencial = masa * g * altura
+    E_Cinetica = 0.5 * masa * velocidad**2
+    E_Mecanica = E_Potencial + E_Cinetica
+    return E_Potencial, E_Cinetica, E_Mecanica
 
 
 if __name__ == "__main__":
