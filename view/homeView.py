@@ -99,31 +99,6 @@ def ajuste_lineal(t, y):
     return modelo(t, *params), params
 
 
-def estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto):
-    # Recortar posibles extremos ruidosos
-    df = df.iloc[0:-5] if len(df) > 10 else df.copy()
-
-    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
-    vel_y = df['Velocidad_Y'].values
-    acel_y = df['Aceleracion_Y'].values
-
-    ajustado, (a, b, c) = ajuste_parabolico(vel_y, acel_y)
-
-    k = -masa_objeto * b  # porque b ≈ -k/m
-
-    # Calcular R²
-    ss_res = np.sum((acel_y - ajustado) ** 2)
-    ss_tot = np.sum((acel_y - np.mean(acel_y)) ** 2)
-    r2 = 1 - ss_res / ss_tot
-
-    print(f"Modelo ajustado: a_Y = {c:.3f} + ({b:.3f})*v_Y + ({a:.3f})*v_Y²")
-    print(
-        f"Constante viscosa estimada con ajuste parabólico: k = {k:.4f} kg/s")
-    print(f"Coeficiente de correlación R² = {r2:.4f}")
-
-    return k
-
-
 def velocidad_promedio_y(df):
     return df['Velocidad_Y'].mean()
 
