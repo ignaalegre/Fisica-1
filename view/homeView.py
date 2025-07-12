@@ -192,6 +192,27 @@ def calcular_modelo_viscoso(tiempos, masa, k, altura_inicial):
         (masa * v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
     return vel, pos
 
+def calculos_Energia(tiempos, altura, masa, velocidad):
+    """
+    Calcula la energía potencial gravitacional y cinética de un objeto en cada instante.
+
+    Parámetros:
+        - tiempos: np.array con los valores de tiempo.
+        - altura: Altura del objeto sobre el nivel de referencia (m).
+        - masa: Masa del objeto (kg).
+        - velocidad: Velocidad del objeto en cada instante (m/s)).
+
+    Devuelve:
+        E_potencial (gravitacional con respecto al tiempo),
+        E_cinetica con respecto al tiempo
+        E_mecanica (que es la suma de las dos anteriores)
+    """
+    g = 9.81  # Aceleración gravitacional en m/s²
+    E_Potencial =  masa * g * altura
+    E_Cinetica = 0.5 * masa * velocidad**2
+    E_Mecanica = E_Potencial + E_Cinetica
+    return E_Potencial, E_Cinetica, E_Mecanica
+
 
 def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes=6):
     # Leer el archivo CSV con los datos completos
@@ -212,11 +233,25 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes
         tiempos, masa, k_estimado, altura_caida
     )
 
+    # Calcular energías usando los datos reales
+    E_Potencial, E_Cinetica, E_Mecanica = calculos_Energia(
+        tiempos, df['Y_metros'], masa, df['Velocidad_Y']
+    )
+
+    # Calcular energías teóricas con rozamiento viscoso
+    E_Potencial_visc, E_Cinetica_visc, E_Mecanica_visc = calculos_Energia(
+        tiempos, posiciones_viscoso, masa, velocidades_viscoso
+    )
     ajuste_pos_Y, coef_pos_Y = ajuste_posicion_viscoso(
         tiempos, df['Y_metros'].values, masa, altura_caida)
     ajuste_vel_Y, coef_vel_Y = ajuste_velocidad_viscoso(
         tiempos, df['Velocidad_Y'].values, masa)
     ajuste_ace_Y, coef_ace_Y = ajuste_constante(tiempos, df['Aceleracion_Y'])
+
+    # Calcular energías con el ajuste al modelo viscoso
+    E_Potencial_ajuste, E_Cinetica_ajuste, E_Mecanica_ajuste = calculos_Energia(
+        tiempos, ajuste_pos_Y, masa, ajuste_vel_Y
+    )
 
     print("\n--- Ajustes ---")
     print(
@@ -300,7 +335,17 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes
                        mode='lines+markers', name='Impulso Experimental', line=dict(color='lightgreen'))
         ], "Tiempo (s)", "Impulso (N·s)")),
 
-
+        ("Energías vs Tiempo", crear_figura("Energía Potencial, Cinética y Mecánica vs Tiempo", [
+            go.Scatter(x=tiempos, y=E_Potencial, mode='lines', name='E. Potencial (Experimental)', line=dict(color='blue')),
+            go.Scatter(x=tiempos, y=E_Cinetica, mode='lines', name='E. Cinética (Experimental)', line=dict(color='red')),
+            go.Scatter(x=tiempos, y=E_Mecanica, mode='lines', name='E. Mecánica (Experimental)', line=dict(color='green')),
+            go.Scatter(x=tiempos, y=E_Potencial_visc, mode='lines', name='E. Potencial (Viscoso)', line=dict(color='navy', dash='dot')),
+            go.Scatter(x=tiempos, y=E_Cinetica_visc, mode='lines', name='E. Cinética (Viscoso)', line=dict(color='darkred', dash='dot')),
+            go.Scatter(x=tiempos, y=E_Mecanica_visc, mode='lines', name='E. Mecánica (Viscoso)', line=dict(color='darkgreen', dash='dot')),
+            go.Scatter(x=tiempos, y=E_Potencial_ajuste, mode='lines', name='E. Potencial (Ajuste)', line=dict(color='deepskyblue', dash='dash')),
+            go.Scatter(x=tiempos, y=E_Cinetica_ajuste, mode='lines', name='E. Cinética (Ajuste)', line=dict(color='orange', dash='dash')),
+            go.Scatter(x=tiempos, y=E_Mecanica_ajuste, mode='lines', name='E. Mecánica (Ajuste)', line=dict(color='lime', dash='dash'))
+        ], "Tiempo (s)", "Energía (J)")),
     )
 
     return tabs
