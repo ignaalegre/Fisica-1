@@ -43,21 +43,21 @@ def main():
         sys.stdout = buffer
         def task():
             df = pd.read_csv(ruta_csv)
-            estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
+
             estimar_constante_viscosa_con_ajuste_cuadrático(df, MASA_OBJETO)
             vel_promedio_y = velocidad_promedio_y(df)
             acel_promedio_y = aceleración_promedio_y(df)
             print(f"Aceleración promedio basado en el csv: {acel_promedio_y}")
             print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
 
-            k = estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
-            panel,tabs = graficar_resultados(ruta_csv, ALTURA_CAIDA, MASA_OBJETO, k, seleccion)
+            panel,tabs = graficar_resultados(ruta_csv, ALTURA_CAIDA, seleccion)
             sys.stdout = sys_stdout_original
             resumen_texto = buffer.getvalue()
             resumen_pane = pn.pane.Markdown(f"```\n{resumen_texto}\n```", sizing_mode='stretch_width')
             tabs.append(("Resumen", resumen_pane))
             panel.show()
-        threading.Thread(target=task).start()
+
+        threading.Thread(target=task, daemon=True).start()
         
     def track_video():
         print("Iniciar el tracker de video...", ruta_video)
@@ -103,52 +103,6 @@ def ajuste_lineal(t, y):
     return modelo(t, *params), params
 
 
-def ajuste_constante(t, y):
-    def modelo(t, c): return np.full_like(t, c)
-    params, _ = curve_fit(modelo, t, y)
-    return modelo(t, *params), params
-
-
-def ajuste_posicion_viscoso(t, y, masa, altura_inicial):
-    def modelo_posicion(t, k):
-        g = 9.81
-        v_terminal = masa * -g / k
-        return altura_inicial + v_terminal * t - (masa * v_terminal / k) * (1 - np.exp(-k * t / masa))
-    params, _ = curve_fit(modelo_posicion, t, y)
-    return modelo_posicion(t, *params), params
-
-
-def ajuste_velocidad_viscoso(t, y, masa):
-    def modelo_velocidad(t, k):
-        g = 9.81
-        v_terminal = masa * g / k
-        return -v_terminal * (1 - np.exp(-k * t / masa))
-    params, _ = curve_fit(modelo_velocidad, t, y)
-    return modelo_velocidad(t, *params), params
-
-
-def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
-    # Recortar posibles extremos ruidosos
-    df = df.iloc[0:-5] if len(df) > 10 else df.copy()
-
-    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
-    vel_y = df['Velocidad_Y'].values
-    acel_y = df['Aceleracion_Y'].values
-
-    ajustado, (m, b) = ajuste_lineal(vel_y, acel_y)
-
-    k = -masa_objeto * m  # porque m ≈ -k/m
-
-    # Calcular R²
-    ss_res = np.sum((acel_y - ajustado) ** 2)
-    ss_tot = np.sum((acel_y - np.mean(acel_y)) ** 2)
-    r2 = 1 - ss_res / ss_tot
-
-    print(f"Modelo ajustado: a_Y = {b:.3f} + ({m:.3f}) * v_Y")
-    print(f"Constante viscosa estimada con ajuste lineal: k = {k:.4f} kg/s")
-    print(f"Coeficiente de correlación R² = {r2:.4f}")
-
-    return k
 
 
 def estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto):
@@ -200,59 +154,8 @@ def calcular_mruv(tiempos, altura_caida):
     return posiciones_mruv, velocidades_mruv, aceleraciones_mruv
 
 
-def calcular_modelo_viscoso(tiempos, masa, k, altura_inicial):
-    """
-    Derivación:
-    Por 2da ley de Newton:
-        ∑F = m·a → -mg + (-kv) = m·dv/dt
-        dv/dt + (k/m)v = -g   → EDO lineal
 
-    Solución por factor integrante:
-        v(t) = (m*-g/k)(1 - e^(-k·t/m))
-
-    Luego, integrando para y(t):
-        y(t) = y0 - (mg/k)t + (m²g/k²)(1 - e^(-k·t/m))
-
-    Parámetros:
-        - tiempos: np.array con los valores de tiempo
-        - masa: masa del objeto (kg)
-        - k: constante de rozamiento viscoso (kg/s)
-        - altura_inicial: y0 (m)
-
-    Devuelve:
-        - velocidades según el modelo con rozamiento viscoso
-        - posiciones según el mismo modelo
-    """
-    g = 9.81
-    v_terminal = masa * -g / k
-    vel = v_terminal * (1 - np.exp(-k * tiempos / masa))
-    pos = altura_inicial + v_terminal * tiempos - \
-        (masa * v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
-    return vel, pos
-
-def calculos_Energia(tiempos, altura, masa, velocidad):
-    """
-    Calcula la energía potencial gravitacional y cinética de un objeto en cada instante.
-
-    Parámetros:
-        - tiempos: np.array con los valores de tiempo.
-        - altura: Altura del objeto sobre el nivel de referencia (m).
-        - masa: Masa del objeto (kg).
-        - velocidad: Velocidad del objeto en cada instante (m/s)).
-
-    Devuelve:
-        E_potencial (gravitacional con respecto al tiempo),
-        E_cinetica con respecto al tiempo
-        E_mecanica (que es la suma de las dos anteriores)
-    """
-    g = 9.81  # Aceleración gravitacional en m/s²
-    E_Potencial =  masa * g * altura
-    E_Cinetica = 0.5 * masa * velocidad**2
-    E_Mecanica = E_Potencial + E_Cinetica
-    return E_Potencial, E_Cinetica, E_Mecanica
-
-
-def graficar_resultados(csv_path, altura_caida, masa, k_estimado, titulo, recorte_bordes=6):
+def graficar_resultados(csv_path, altura_caida,titulo, recorte_bordes=6):
     # Leer el archivo CSV con los datos completos
     df = pd.read_csv(csv_path)
 
@@ -266,35 +169,6 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, titulo, recort
     # Calcular las posiciones, velocidades y aceleraciones según MRUV
     posiciones_mruv, velocidades_mruv, aceleraciones_mruv = calcular_mruv(
         tiempos, altura_caida)
-
-    velocidades_viscoso, posiciones_viscoso = calcular_modelo_viscoso(
-        tiempos, masa, k_estimado, altura_caida
-    )
-
-    # Calcular energías usando los datos reales
-    E_Potencial, E_Cinetica, E_Mecanica = calculos_Energia(
-        tiempos, df['Y_metros'], masa, df['Velocidad_Y']
-    )
-
-    # Calcular energías teóricas con rozamiento viscoso
-    E_Potencial_visc, E_Cinetica_visc, E_Mecanica_visc = calculos_Energia(
-        tiempos, posiciones_viscoso, masa, velocidades_viscoso
-    )
-    ajuste_pos_Y, coef_pos_Y = ajuste_posicion_viscoso(
-        tiempos, df['Y_metros'].values, masa, altura_caida)
-    ajuste_vel_Y, coef_vel_Y = ajuste_velocidad_viscoso(
-        tiempos, df['Velocidad_Y'].values, masa)
-    ajuste_ace_Y, coef_ace_Y = ajuste_constante(tiempos, df['Aceleracion_Y'])
-
-    # Calcular energías con el ajuste al modelo viscoso
-    E_Potencial_ajuste, E_Cinetica_ajuste, E_Mecanica_ajuste = calculos_Energia(
-        tiempos, ajuste_pos_Y, masa, ajuste_vel_Y
-    )
-
-    print("\n--- Ajustes ---")
-    print(f"Posición Y: k={coef_pos_Y[0]:.3f}")
-    print(f"Velocidad Y: k={coef_vel_Y[0]:.3f}")
-    print(f"Aceleración Y constante: {coef_ace_Y[0]:.3f}")
 
     def crear_figura(titulo, trazas, xlabel, ylabel):
         fig = go.Figure()
@@ -318,10 +192,10 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, titulo, recort
             go.Scatter(x=tiempos, y=df['Y_metros'],
                        mode='lines+markers', name='Real'),
             go.Scatter(x=tiempos, y=posiciones_mruv,
-                       mode='lines', name='Caida libre téorica sin rozamiento'),
-            go.Scatter(x=tiempos, y=ajuste_pos_Y, mode='lines',
+                       mode='lines', name='MRUV'),
+            go.Scatter(x=tiempos, y=df['Posicion_Ajuste_Viscoso_Y'], mode='lines',
                        name='Ajuste al modelo viscoso', line=dict(dash='dash')),
-            go.Scatter(x=tiempos, y=posiciones_viscoso, mode='lines',
+            go.Scatter(x=tiempos, y=df['Posicion_Y_Teorico'], mode='lines',
                        name='Modelo viscoso', line=dict(dash='dot', color='magenta'))
         ], "Tiempo (s)", "Altura Y (m)")),
 
@@ -334,10 +208,10 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, titulo, recort
             go.Scatter(x=tiempos, y=df['Velocidad_Y'],
                        mode='lines+markers', name='Real'),
             go.Scatter(x=tiempos, y=velocidades_mruv,
-                       mode='lines', name='Caida libre téorica sin rozamiento'),
-            go.Scatter(x=tiempos, y=ajuste_vel_Y, mode='lines',
+                       mode='lines', name='MRUV'),
+            go.Scatter(x=tiempos, y=df['Velocidad_Ajuste_Viscoso_Y'], mode='lines',
                        name='Ajuste al modelo viscoso', line=dict(dash='dash')),
-            go.Scatter(x=tiempos, y=velocidades_viscoso, mode='lines',
+            go.Scatter(x=tiempos, y=df['Velocidad_Y_Teorico'], mode='lines',
                        name='Modelo viscoso', line=dict(dash='dot', color='magenta'))
 
         ], "Tiempo (s)", "Velocidad Y (m/s)")),
@@ -351,8 +225,8 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, titulo, recort
             go.Scatter(x=tiempos, y=df['Aceleracion_Y'],
                        mode='lines+markers', name='Real'),
             go.Scatter(x=tiempos, y=aceleraciones_mruv,
-                       mode='lines', name='Caida libre téorica sin rozamiento'),
-            go.Scatter(x=tiempos, y=ajuste_ace_Y, mode='lines',
+                       mode='lines', name='MRUV'),
+            go.Scatter(x=tiempos, y=df['Aceleracion_Ajuste_Viscoso_Y'], mode='lines',
                        name='Ajuste constante', line=dict(dash='dash'))
         ], "Tiempo (s)", "Aceleración Y (m/s²)")),
 
@@ -372,20 +246,29 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, titulo, recort
         ], "Tiempo (s)", "Impulso (N·s)")),
 
         ("Energías vs Tiempo", crear_figura("Energía Potencial, Cinética y Mecánica vs Tiempo", [
-            go.Scatter(x=tiempos, y=E_Potencial, mode='lines', name='E. Potencial (Experimental)', line=dict(color='blue')),
-            go.Scatter(x=tiempos, y=E_Cinetica, mode='lines', name='E. Cinética (Experimental)', line=dict(color='red')),
-            go.Scatter(x=tiempos, y=E_Mecanica, mode='lines', name='E. Mecánica (Experimental)', line=dict(color='green')),
-            go.Scatter(x=tiempos, y=E_Potencial_visc, mode='lines', name='E. Potencial (Viscoso)', line=dict(color='navy', dash='dot')),
-            go.Scatter(x=tiempos, y=E_Cinetica_visc, mode='lines', name='E. Cinética (Viscoso)', line=dict(color='darkred', dash='dot')),
-            go.Scatter(x=tiempos, y=E_Mecanica_visc, mode='lines', name='E. Mecánica (Viscoso)', line=dict(color='darkgreen', dash='dot')),
-            go.Scatter(x=tiempos, y=E_Potencial_ajuste, mode='lines', name='E. Potencial (Ajuste)', line=dict(color='deepskyblue', dash='dash')),
-            go.Scatter(x=tiempos, y=E_Cinetica_ajuste, mode='lines', name='E. Cinética (Ajuste)', line=dict(color='orange', dash='dash')),
-            go.Scatter(x=tiempos, y=E_Mecanica_ajuste, mode='lines', name='E. Mecánica (Ajuste)', line=dict(color='lime', dash='dash'))
+            go.Scatter(x=tiempos, y=df['Energia_Potencial'], mode='lines',
+                       name='E. Potencial (Experimental)', line=dict(color='blue')),
+            go.Scatter(x=tiempos, y=df['Energia_Cinetica'], mode='lines',
+                       name='E. Cinética (Experimental)', line=dict(color='red')),
+            go.Scatter(x=tiempos, y=df['Energia_Mecanica'], mode='lines',
+                       name='E. Mecánica (Experimental)', line=dict(color='green')),
+            go.Scatter(x=tiempos, y=df['Energia_Potencial_Teorico'], mode='lines',
+                       name='E. Potencial (Viscoso)', line=dict(color='navy', dash='dot')),
+            go.Scatter(x=tiempos, y=df['Energia_Cinetica_Teorico'], mode='lines',
+                       name='E. Cinética (Viscoso)', line=dict(color='darkred', dash='dot')),
+            go.Scatter(x=tiempos, y=df['Energia_Mecanica_Teorico'], mode='lines',
+                       name='E. Mecánica (Viscoso)', line=dict(color='darkgreen', dash='dot')),
+            go.Scatter(x=tiempos, y=df['Energia_Potencial_Ajuste'], mode='lines',
+                       name='E. Potencial (Ajuste)', line=dict(color='deepskyblue', dash='dash')),
+            go.Scatter(x=tiempos, y=df['Energia_Cinetica_Ajuste'], mode='lines',
+                       name='E. Cinética (Ajuste)', line=dict(color='orange', dash='dash')),
+            go.Scatter(x=tiempos, y=df['Energia_Mecanica_Ajuste'], mode='lines',
+                       name='E. Mecánica (Ajuste)', line=dict(color='lime', dash='dash'))
         ], "Tiempo (s)", "Energía (J)")),
     )
-
     header = pn.pane.Markdown(f"# {titulo}", sizing_mode='stretch_width')
     return pn.Column(header, tabs, sizing_mode='stretch_both'), tabs
+
 
 
 if __name__ == "__main__":
