@@ -12,7 +12,7 @@ def main(csv_path,video_path):
     ALTURA_CAIDA = 4.28  # en metros
     FPS = 60
     MASA_OBJETO = 0.1
-
+    print(f"Procesando video: {video_path}")
     # --- Ejecución del flujo principal ---
     video, first_frame = inicializar_video(video_path)
     tracker, bbox = seleccionar_roi(first_frame)

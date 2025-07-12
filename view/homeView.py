@@ -8,6 +8,8 @@ import panel as pn
 import threading
 import sys
 import os
+import io
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -25,14 +27,20 @@ def main():
         "Globo grande": ("data/trayectoria_globo_grande.csv",'media/oso_recortados/oso_globo_grande.mov')
     }
     ruta_csv, ruta_video = archivos["Sin Globo"]
+    seleccion = "Sin Globo"
 
     def on_selection(event):
         def task():
+            nonlocal ruta_csv, ruta_video, seleccion
             seleccion = combo.get()
             ruta_csv, ruta_video = archivos[seleccion]
         threading.Thread(target=task).start()
         
     def show_graphs():
+        #Mapea los prints a la GUI
+        buffer = io.StringIO()
+        sys_stdout_original = sys.stdout
+        sys.stdout = buffer
         def task():
             df = pd.read_csv(ruta_csv)
             estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
@@ -43,7 +51,11 @@ def main():
             print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
 
             k = estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
-            tabs = graficar_resultados(ruta_csv, ALTURA_CAIDA, MASA_OBJETO, k)
+            tabs = graficar_resultados(ruta_csv, ALTURA_CAIDA, MASA_OBJETO, k, seleccion)
+            sys.stdout = sys_stdout_original
+            resumen_texto = buffer.getvalue()
+            resumen_pane = pn.pane.Markdown(f"```\n{resumen_texto}\n```", sizing_mode='stretch_width')
+            tabs.append(("Resumen", resumen_pane))
             tabs.show()
         threading.Thread(target=task).start()
         
@@ -70,11 +82,11 @@ def main():
     combo.bind("<<ComboboxSelected>>", on_selection)
     combo.set("Sin Globo")  # Valor por defecto
     
+    trackear_btn = tk.Button(root, text="Trackear Video",command=track_video)
+    trackear_btn.pack(pady=5)
     ver_graficos_btn = tk.Button(root, text="Ver Gráficos", command=show_graphs) 
     ver_graficos_btn.pack(pady=5)
     
-    trackear_btn = tk.Button(root, text="Trackear Video",command=track_video)
-    trackear_btn.pack(pady=5)
 
     root.mainloop()
 
@@ -240,7 +252,7 @@ def calculos_Energia(tiempos, altura, masa, velocidad):
     return E_Potencial, E_Cinetica, E_Mecanica
 
 
-def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes=6):
+def graficar_resultados(csv_path, altura_caida, masa, k_estimado, titulo, recorte_bordes=6):
     # Leer el archivo CSV con los datos completos
     df = pd.read_csv(csv_path)
 
@@ -280,10 +292,8 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes
     )
 
     print("\n--- Ajustes ---")
-    print(
-        f"Posición Y: k={coef_pos_Y[0]:.3f}")
+    print(f"Posición Y: k={coef_pos_Y[0]:.3f}")
     print(f"Velocidad Y: k={coef_vel_Y[0]:.3f}")
-
     print(f"Aceleración Y constante: {coef_ace_Y[0]:.3f}")
 
     def crear_figura(titulo, trazas, xlabel, ylabel):
@@ -374,7 +384,8 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, recorte_bordes
         ], "Tiempo (s)", "Energía (J)")),
     )
 
-    return tabs
+    header = pn.pane.Markdown(f"# {titulo}", sizing_mode='stretch_width')
+    return pn.Column(header, tabs, sizing_mode='stretch_both')
 
 
 if __name__ == "__main__":
