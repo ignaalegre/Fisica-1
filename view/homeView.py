@@ -30,9 +30,10 @@ def main():
 
     def on_selection(event):
         def task():
+            nonlocal ruta_csv, ruta_video, seleccion
             seleccion = combo.get()
             ruta = archivos[seleccion]
-            df = pd.read_csv(ruta)
+            df = pd.read_csv(ruta_csv)
 
             ruta_csv, ruta_video = archivos[seleccion]
         threading.Thread(target=task).start()
