@@ -56,7 +56,7 @@ def main():
             resumen_texto = buffer.getvalue()
             resumen_pane = pn.pane.Markdown(f"```\n{resumen_texto}\n```", sizing_mode='stretch_width')
             tabs.append(("Resumen", resumen_pane))
-            tabs.show()
+            panel.show()
         threading.Thread(target=task).start()
         
     def track_video():
@@ -318,7 +318,7 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, titulo, recort
             go.Scatter(x=tiempos, y=df['Y_metros'],
                        mode='lines+markers', name='Real'),
             go.Scatter(x=tiempos, y=posiciones_mruv,
-                       mode='lines', name='MRUV'),
+                       mode='lines', name='Caida libre téorica sin rozamiento'),
             go.Scatter(x=tiempos, y=ajuste_pos_Y, mode='lines',
                        name='Ajuste al modelo viscoso', line=dict(dash='dash')),
             go.Scatter(x=tiempos, y=posiciones_viscoso, mode='lines',
@@ -334,7 +334,7 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, titulo, recort
             go.Scatter(x=tiempos, y=df['Velocidad_Y'],
                        mode='lines+markers', name='Real'),
             go.Scatter(x=tiempos, y=velocidades_mruv,
-                       mode='lines', name='MRUV'),
+                       mode='lines', name='Caida libre téorica sin rozamiento'),
             go.Scatter(x=tiempos, y=ajuste_vel_Y, mode='lines',
                        name='Ajuste al modelo viscoso', line=dict(dash='dash')),
             go.Scatter(x=tiempos, y=velocidades_viscoso, mode='lines',
@@ -351,7 +351,7 @@ def graficar_resultados(csv_path, altura_caida, masa, k_estimado, titulo, recort
             go.Scatter(x=tiempos, y=df['Aceleracion_Y'],
                        mode='lines+markers', name='Real'),
             go.Scatter(x=tiempos, y=aceleraciones_mruv,
-                       mode='lines', name='MRUV'),
+                       mode='lines', name='Caida libre téorica sin rozamiento'),
             go.Scatter(x=tiempos, y=ajuste_ace_Y, mode='lines',
                        name='Ajuste constante', line=dict(dash='dash'))
         ], "Tiempo (s)", "Aceleración Y (m/s²)")),
