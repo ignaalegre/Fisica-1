@@ -6,15 +6,15 @@ from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
 
 
-def main():
+def main(csv_path, video_path):
     # --- Parámetros dados ---
-    VIDEO_PATH = 'media/oso_recortados/oso_globo_chico.mov'
+    video_path
     ALTURA_CAIDA = 4.28  # en metros
     FPS = 60
     MASA_OBJETO = 0.1
-
+    print(f"Procesando video: {video_path}")
     # --- Ejecución del flujo principal ---
-    video, first_frame = inicializar_video(VIDEO_PATH)
+    video, first_frame = inicializar_video(video_path)
     tracker, bbox = seleccionar_roi(first_frame)
     centros, desplazamientos_ternarios, first_tracked_frame, last_frame, last_bbox = procesar_video(
         video, tracker)
@@ -298,7 +298,7 @@ def calcular_velocidades_aceleraciones(csv_path, fps):
     df.fillna(0, inplace=True)
 
     # Guardar el DataFrame actualizado en un nuevo archivo CSV
-    output_csv_path = 'tracker/csv_generados/trayectoria_objeto_completa.csv'
+    output_csv_path = csv_path
     df.to_csv(output_csv_path, index=False)
     print(
         f"Archivo con velocidades y aceleraciones guardado en: {output_csv_path}")
@@ -345,7 +345,38 @@ def estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto):
     return k
 
 
-def calcular_fuerza_rozamiento(df, masa_objeto):
+def calcular_modelo_viscoso(tiempos, masa, k, altura_inicial):
+    """
+    Derivación:
+    Por 2da ley de Newton:
+        ∑F = m·a → -mg + (-kv) = m·dv/dt
+        dv/dt + (k/m)v = -g   → EDO lineal
+
+    Solución por factor integrante:
+        v(t) = (m*-g/k)(1 - e^(-k·t/m))
+
+    Luego, integrando para y(t):
+        y(t) = y0 - (mg/k)t + (m²g/k²)(1 - e^(-k·t/m))
+
+    Parámetros:
+        - tiempos: np.array con los valores de tiempo
+        - masa: masa del objeto (kg)
+        - k: constante de rozamiento viscoso (kg/s)
+        - altura_inicial: y0 (m)
+
+    Devuelve:
+        - velocidades según el modelo con rozamiento viscoso
+        - posiciones según el mismo modelo
+    """
+    g = 9.81
+    v_terminal = masa * -g / k
+    vel = v_terminal * (1 - np.exp(-k * tiempos / masa))
+    pos = altura_inicial + v_terminal * tiempos - \
+        (masa * v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
+    return vel, pos
+
+
+def calcular_fuerza_rozamiento(csv_path, df, masa_objeto):
     k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
     df['Fuerza_Rozamiento_Y'] = -k * df['Velocidad_Y']
     print("Archivo actualizado con fuerza de rozamiento guardado en tracker/csv_generados/trayectoria_objeto_completa.csv")
@@ -386,7 +417,7 @@ def calcular_modelo_viscoso(df, tiempos, masa, k, altura_inicial):
 # ENERGÍA
 
 
-def calcular_impulso_experimental(df, fps):
+def calcular_impulso_experimental(csv_path, df, fps):
     fuerza = df['Fuerza_Rozamiento_Y'].values
     dt = 1.0 / fps
     impulso = np.cumsum(fuerza) * dt

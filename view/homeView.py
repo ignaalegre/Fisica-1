@@ -1,3 +1,4 @@
+from tracker.trackerVideo import main as trackear_video
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
@@ -6,6 +7,12 @@ from tkinter import ttk
 import plotly.graph_objects as go
 import panel as pn
 import threading
+import sys
+import os
+import io
+
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
 def main():
@@ -13,11 +20,13 @@ def main():
     MASA_OBJETO = 0.1
 
     archivos = {
-        "Sin Globo": "data/trayectoria_sin_globo.csv",
-        "Globo chico": "data/trayectoria_globo_chico.csv",
-        "Globo mediano": "data/trayectoria_globo_mediano.csv",
-        "Globo grande": "data/trayectoria_globo_grande.csv"
+        "Sin Globo": ("data/trayectoria_sin_globo.csv", 'media/oso_recortados/oso_sin_globo.mov'),
+        "Globo chico": ("data/trayectoria_globo_chico.csv", 'media/oso_recortados/oso_globo_chico.mov'),
+        "Globo mediano": ("data/trayectoria_globo_mediano.csv", 'media/oso_recortados/oso_globo_mediano.mov'),
+        "Globo grande": ("data/trayectoria_globo_grande.csv", 'media/oso_recortados/oso_globo_grande.mov')
     }
+    ruta_csv, ruta_video = archivos["Sin Globo"]
+    seleccion = "Sin Globo"
 
     def on_selection(event):
         def task():
@@ -25,28 +34,55 @@ def main():
             ruta = archivos[seleccion]
             df = pd.read_csv(ruta)
 
-            estimar_constante_viscosa_con_ajuste_cuadrático(df, MASA_OBJETO)
+            ruta_csv, ruta_video = archivos[seleccion]
+        threading.Thread(target=task).start()
+
+    def show_graphs():
+        # Mapea los prints a la GUI
+        buffer = io.StringIO()
+        sys_stdout_original = sys.stdout
+        sys.stdout = buffer
+
+        def task():
+            df = pd.read_csv(ruta_csv)
             vel_promedio_y = velocidad_promedio_y(df)
             acel_promedio_y = aceleración_promedio_y(df)
             print(f"Aceleración promedio basado en el csv: {acel_promedio_y}")
             print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
 
-            tabs = graficar_resultados(ruta, ALTURA_CAIDA)
-            tabs.show()
-
+            panel, tabs = graficar_resultados(
+                ruta_csv, ALTURA_CAIDA, seleccion)
+            sys.stdout = sys_stdout_original
+            resumen_texto = buffer.getvalue()
+            resumen_pane = pn.pane.Markdown(
+                f"```\n{resumen_texto}\n```", sizing_mode='stretch_width')
+            tabs.append(("Resumen", resumen_pane))
+            panel.show()
         threading.Thread(target=task, daemon=True).start()
+
+    def track_video():
+        print("Iniciar el tracker de video...", ruta_video)
+        trackear_video(ruta_csv, ruta_video)
+        print("Tracker de video finalizado.")
 
     # Crear GUI simple con tkinter
     root = tk.Tk()
     root.title("Visualizador de Experimentos")
-    root.geometry("400x120")
+    root.geometry("400x180")
 
     label = tk.Label(root, text="Selecciona un experimento:")
     label.pack(pady=10)
 
     combo = ttk.Combobox(root, values=list(archivos.keys()), state="readonly")
-    combo.pack()
+    combo.pack(pady=(0, 10))
     combo.bind("<<ComboboxSelected>>", on_selection)
+    combo.set("Sin Globo")  # Valor por defecto
+
+    trackear_btn = tk.Button(root, text="Trackear Video", command=track_video)
+    trackear_btn.pack(pady=5)
+    ver_graficos_btn = tk.Button(
+        root, text="Ver Gráficos", command=show_graphs)
+    ver_graficos_btn.pack(pady=5)
 
     root.mainloop()
 
@@ -112,7 +148,7 @@ def calcular_mruv(tiempos, altura_caida):
     return posiciones_mruv, velocidades_mruv, aceleraciones_mruv
 
 
-def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
+def graficar_resultados(csv_path, altura_caida, titulo, recorte_bordes=6):
     # Leer el archivo CSV con los datos completos
     df = pd.read_csv(csv_path)
 
@@ -149,7 +185,7 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
             go.Scatter(x=tiempos, y=df['Y_metros'],
                        mode='lines+markers', name='Real'),
             go.Scatter(x=tiempos, y=posiciones_mruv,
-                       mode='lines', name='MRUV'),
+                       mode='lines', name='Caida libre téorica sin rozamiento'),
             go.Scatter(x=tiempos, y=df['Posicion_Ajuste_Viscoso_Y'], mode='lines',
                        name='Ajuste al modelo viscoso', line=dict(dash='dash')),
             go.Scatter(x=tiempos, y=df['Posicion_Y_teorico'], mode='lines',
@@ -165,7 +201,7 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
             go.Scatter(x=tiempos, y=df['Velocidad_Y'],
                        mode='lines+markers', name='Real'),
             go.Scatter(x=tiempos, y=velocidades_mruv,
-                       mode='lines', name='MRUV'),
+                       mode='lines', name='Caida libre téorica sin rozamiento'),
             go.Scatter(x=tiempos, y=df['Velocidad_Ajuste_Viscoso_Y'], mode='lines',
                        name='Ajuste al modelo viscoso', line=dict(dash='dash')),
             go.Scatter(x=tiempos, y=df['Velocidad_Y_teorico'], mode='lines',
@@ -182,7 +218,7 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
             go.Scatter(x=tiempos, y=df['Aceleracion_Y'],
                        mode='lines+markers', name='Real'),
             go.Scatter(x=tiempos, y=aceleraciones_mruv,
-                       mode='lines', name='MRUV'),
+                       mode='lines', name='Caida libre téorica sin rozamiento'),
             go.Scatter(x=tiempos, y=df['Aceleracion_Ajuste_Viscoso_Y'], mode='lines',
                        name='Ajuste constante', line=dict(dash='dash'))
         ], "Tiempo (s)", "Aceleración Y (m/s²)")),
@@ -224,7 +260,8 @@ def graficar_resultados(csv_path, altura_caida, recorte_bordes=6):
         ], "Tiempo (s)", "Energía (J)")),
     )
 
-    return tabs
+    header = pn.pane.Markdown(f"# {titulo}", sizing_mode='stretch_width')
+    return pn.Column(header, tabs, sizing_mode='stretch_both'), tabs
 
 
 if __name__ == "__main__":
