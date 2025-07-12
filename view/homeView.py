@@ -6,6 +6,12 @@ from tkinter import ttk
 import plotly.graph_objects as go
 import panel as pn
 import threading
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from tracker.trackerVideo import main as trackear_video
 
 
 def main():
@@ -13,18 +19,22 @@ def main():
     MASA_OBJETO = 0.1
 
     archivos = {
-        "Sin Globo": "data/trayectoria_sin_globo.csv",
-        "Globo chico": "data/trayectoria_globo_chico.csv",
-        "Globo mediano": "data/trayectoria_globo_mediano.csv",
-        "Globo grande": "data/trayectoria_globo_grande.csv"
+        "Sin Globo": ("data/trayectoria_sin_globo.csv", 'media/oso_recortados/oso_sin_globo.mov'),
+        "Globo chico": ("data/trayectoria_globo_chico.csv", 'media/oso_recortados/oso_globo_chico.mov'),
+        "Globo mediano": ("data/trayectoria_globo_mediano.csv",'media/oso_recortados/oso_globo_mediano.mov'),
+        "Globo grande": ("data/trayectoria_globo_grande.csv",'media/oso_recortados/oso_globo_grande.mov')
     }
+    ruta_csv, ruta_video = archivos["Sin Globo"]
 
     def on_selection(event):
         def task():
             seleccion = combo.get()
-            ruta = archivos[seleccion]
-            df = pd.read_csv(ruta)
-
+            ruta_csv, ruta_video = archivos[seleccion]
+        threading.Thread(target=task).start()
+        
+    def show_graphs():
+        def task():
+            df = pd.read_csv(ruta_csv)
             estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
             estimar_constante_viscosa_con_ajuste_cuadrático(df, MASA_OBJETO)
             vel_promedio_y = velocidad_promedio_y(df)
@@ -33,22 +43,38 @@ def main():
             print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
 
             k = estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
-            tabs = graficar_resultados(ruta, ALTURA_CAIDA, MASA_OBJETO, k)
+            tabs = graficar_resultados(ruta_csv, ALTURA_CAIDA, MASA_OBJETO, k)
             tabs.show()
-
         threading.Thread(target=task).start()
+        
+    def track_video():
+        print("Iniciar el tracker de video...", ruta_video)
+        trackear_video(ruta_csv,ruta_video)
+        print("Tracker de video finalizado.")
+        
+        
+    
 
     # Crear GUI simple con tkinter
     root = tk.Tk()
     root.title("Visualizador de Experimentos")
-    root.geometry("400x120")
+    root.geometry("400x180")
 
     label = tk.Label(root, text="Selecciona un experimento:")
     label.pack(pady=10)
+    
+
 
     combo = ttk.Combobox(root, values=list(archivos.keys()), state="readonly")
-    combo.pack()
+    combo.pack(pady=(0, 10))
     combo.bind("<<ComboboxSelected>>", on_selection)
+    combo.set("Sin Globo")  # Valor por defecto
+    
+    ver_graficos_btn = tk.Button(root, text="Ver Gráficos", command=show_graphs) 
+    ver_graficos_btn.pack(pady=5)
+    
+    trackear_btn = tk.Button(root, text="Trackear Video",command=track_video)
+    trackear_btn.pack(pady=5)
 
     root.mainloop()
 

@@ -6,15 +6,15 @@ from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
 
 
-def main():
+def main(csv_path,video_path):
     # --- Parámetros dados ---
-    VIDEO_PATH = 'media/oso_recortados/oso_globo_chico.mov'
+    video_path
     ALTURA_CAIDA = 4.28  # en metros
     FPS = 60
     MASA_OBJETO = 0.1
 
     # --- Ejecución del flujo principal ---
-    video, first_frame = inicializar_video(VIDEO_PATH)
+    video, first_frame = inicializar_video(video_path)
     tracker, bbox = seleccionar_roi(first_frame)
     centros, desplazamientos_ternarios, first_tracked_frame, last_frame, last_bbox = procesar_video(
         video, tracker)
@@ -35,9 +35,9 @@ def main():
         'tracker/csv_generados/trayectoria_objeto_metros.csv', FPS)
 
     # Calcular fuerza de rozamiento
-    df = calcular_fuerza_rozamiento(df, MASA_OBJETO)
+    df = calcular_fuerza_rozamiento(csv_path,df, MASA_OBJETO)
 
-    df = calcular_impulso_experimental(df, FPS)
+    df = calcular_impulso_experimental(csv_path,df, FPS)
 
     video.release()
     cv2.destroyAllWindows()
@@ -239,7 +239,7 @@ def calcular_velocidades_aceleraciones(csv_path, fps):
     df.fillna(0, inplace=True)
 
     # Guardar el DataFrame actualizado en un nuevo archivo CSV
-    output_csv_path = 'tracker/csv_generados/trayectoria_objeto_completa.csv'
+    output_csv_path = csv_path
     df.to_csv(output_csv_path, index=False)
     print(
         f"Archivo con velocidades y aceleraciones guardado en: {output_csv_path}")
@@ -269,24 +269,24 @@ def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
     return k
 
 
-def calcular_fuerza_rozamiento(df, masa_objeto):
+def calcular_fuerza_rozamiento(csv_path,df, masa_objeto):
     k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
     df['Fuerza_Rozamiento_Y'] = -k * df['Velocidad_Y']
     # Guardar el CSV actualizado con la fuerza de rozamiento incluida
-    df.to_csv('tracker/csv_generados/trayectoria_objeto_completa.csv', index=False)
-    print("Archivo actualizado con fuerza de rozamiento guardado en tracker/csv_generados/trayectoria_objeto_completa.csv")
+    df.to_csv(csv_path, index=False)
+    print("Archivo actualizado con fuerza de rozamiento guardado en :", csv_path)
     return df
 
 
 # ENERGÍA
 
 
-def calcular_impulso_experimental(df, fps):
+def calcular_impulso_experimental(csv_path,df, fps):
     fuerza = df['Fuerza_Rozamiento_Y'].values
     dt = 1.0 / fps
     impulso = np.cumsum(fuerza) * dt
     df['Impulso'] = impulso
-    df.to_csv('tracker/csv_generados/trayectoria_objeto_completa.csv', index=False)
+    df.to_csv(csv_path, index=False)
     print(f"Impulso experimental total = {impulso[-1]:.4f} N·s")
     return df
 
