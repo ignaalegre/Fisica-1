@@ -54,7 +54,7 @@ def main(csv_path, video_path):
 
     df['Posicion_Ajuste_Viscoso_Y'] = ajuste_pos_Y
     df['Velocidad_Ajuste_Viscoso_Y'] = ajuste_vel_Y
-    df['Aceleracion_Ajuste_Viscoso_Y'] = ajuste_vel_Y
+    df['Aceleracion_Ajuste_Viscoso_Y'] = ajuste_ace_Y
 
     calcular_impulso_experimental(df, FPS)
     E_pot_real, E_cin_real, E_mec_real = calculos_Energia(
@@ -248,6 +248,7 @@ def ajuste_constante(t, y):
     params, _ = curve_fit(modelo, t, y)
     return modelo(t, *params), params
 
+
 def ajuste_posicion_viscoso(t, y, masa, altura_inicial):
     def modelo_posicion(t, k):
         g = 9.81
@@ -264,6 +265,7 @@ def ajuste_velocidad_viscoso(t, y, masa):
         return v_terminal * (1 - np.exp(-k * t / masa))
     params, _ = curve_fit(modelo_velocidad, t, y)
     return modelo_velocidad(t, *params), params
+
 
 def ajuste_posicion_viscoso(t, y, masa, altura_inicial):
     def modelo_posicion(t, k):
