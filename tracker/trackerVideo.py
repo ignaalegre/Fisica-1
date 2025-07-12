@@ -78,8 +78,8 @@ def main(csv_path, video_path):
     df['Energia_Cinetica_Ajuste'] = E_cin_ajuste
     df['Energia_Mecanica_Ajuste'] = E_mec_ajuste
 
-    df.to_csv('tracker/csv_generados/trayectoria_objeto_completa.csv', index=False)
-
+    df.to_csv(csv_path, index=False)
+    print(f"Archivo CSV completo generado en: {csv_path}")
     video.release()
     cv2.destroyAllWindows()
 
@@ -248,6 +248,22 @@ def ajuste_constante(t, y):
     params, _ = curve_fit(modelo, t, y)
     return modelo(t, *params), params
 
+def ajuste_posicion_viscoso(t, y, masa, altura_inicial):
+    def modelo_posicion(t, k):
+        g = 9.81
+        v_terminal = masa * -g / k
+        return altura_inicial + v_terminal * t - (masa * v_terminal / k) * (1 - np.exp(-k * t / masa))
+    params, _ = curve_fit(modelo_posicion, t, y)
+    return modelo_posicion(t, *params), params
+
+
+def ajuste_velocidad_viscoso(t, y, masa):
+    def modelo_velocidad(t, k):
+        g = 9.81
+        v_terminal = masa * -g / k
+        return v_terminal * (1 - np.exp(-k * t / masa))
+    params, _ = curve_fit(modelo_velocidad, t, y)
+    return modelo_velocidad(t, *params), params
 
 def ajuste_posicion_viscoso(t, y, masa, altura_inicial):
     def modelo_posicion(t, k):
@@ -316,7 +332,6 @@ def aceleración_promedio_y(df):
 
 # DINAMICA
 
-
 def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
     # Realizar el ajuste lineal a_Y = a0 + b * v_Y
     vel_y = df['Velocidad_Y'].values
@@ -345,10 +360,9 @@ def estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto):
     return k
 
 
-def calcular_fuerza_rozamiento(csv_path, df, masa_objeto):
+def calcular_fuerza_rozamiento(df, masa_objeto):
     k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
     df['Fuerza_Rozamiento_Y'] = -k * df['Velocidad_Y']
-    print("Archivo actualizado con fuerza de rozamiento guardado en tracker/csv_generados/trayectoria_objeto_completa.csv")
 
 
 def calcular_modelo_viscoso(df, tiempos, masa, k, altura_inicial):
@@ -386,7 +400,7 @@ def calcular_modelo_viscoso(df, tiempos, masa, k, altura_inicial):
 # ENERGÍA
 
 
-def calcular_impulso_experimental(csv_path, df, fps):
+def calcular_impulso_experimental(df, fps):
     fuerza = df['Fuerza_Rozamiento_Y'].values
     dt = 1.0 / fps
     impulso = np.cumsum(fuerza) * dt
