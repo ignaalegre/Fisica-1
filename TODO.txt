@@ -37,7 +37,7 @@ que reciba como parametros el video, el csv de antes y de ahi lo pueda mostrar y
 
 PARTE 2: DINAMICA
 
-    Tomamos el objeto como 1 solo cuerpo, por mas que sean 2.
+    *Tomamos el objeto como 1 solo cuerpo, por mas que sean 2.
 
 [ ✅ ] Ajustar a funciones de recta y parabola los graficos para conseguir una constante y asi poder calcular la fuerza de rozamiento.
 
