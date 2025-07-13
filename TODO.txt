@@ -1,5 +1,6 @@
 Cosas para hacer que nos recomendo el ayudante (tipazo Marcos):
 
+PARTE 1: CINEMATICA
 
 [ ✅ ] La velocidad debe ser negativa ya que el objeto esta bajando por el eje y
 
@@ -47,6 +48,8 @@ PARTE 2: DINAMICA
 [ ✅ ] Graficar fuerza vs velocidad.
 
 [ ✅ ] Calculo del modelo viscoso a partir de la 2da ley (lo que pidió marcos)
+
+PARTE 3: IMPULSO Y ENERGIA 
 
 [ ✅ ] Para energia: Integrar F en funcion del tiempo, eso va a ser impulso, y podemos saber el impulso que nos va a estar haciendo la fuerza viscosa.
 
