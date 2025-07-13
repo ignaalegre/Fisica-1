@@ -204,14 +204,14 @@ def graficar_resultados(csv_path, altura_caida,titulo, recorte_bordes=5):
         ("Fuerza vs Tiempo", crear_figura("Fuerza de Rozamiento vs Tiempo", [
             go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Fuerza_Rozamiento_Y'],
                        mode='lines+markers', name='Fuerza Viscosa según datos experimentales'),
-            go.Scatter(x=tiempos, y=df['Fuerza_Rozamiento_Y_Teorico'],
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Fuerza_Rozamiento_Y_Teorico'],
                        mode='lines+markers', name='Fuerza Viscosa según modelo viscoso')
         ], "Tiempo (s)", "Fuerza (N)")),
 
         ("Impulso vs Tiempo", crear_figura("Impulso vs Tiempo", [
             go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Impulso'],
                        mode='lines+markers', name='Impulso Experimental', line=dict(color='lightgreen')),
-            go.Scatter(x=tiempos, y=df['Impulso_Teorico'],
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Impulso_Teorico'],
                        mode='lines+markers', name='Impulso según modelo viscoso', line=dict(color='green'))
         ], "Tiempo (s)", "Impulso (N·s)")),
 
