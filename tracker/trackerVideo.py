@@ -420,7 +420,7 @@ def calculos_Energia(altura, masa, velocidad):
         - velocidad: Velocidad del objeto en cada instante (m/s)).
 
     Devuelve:
-        E_potencial (gravitacional con respecto al tiempo),
+        E_potencial (gravitacional con respecto al tiempo)
         E_cinetica con respecto al tiempo
         E_mecanica (que es la suma de las dos anteriores)
     """
