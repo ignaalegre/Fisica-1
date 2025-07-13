@@ -6,10 +6,14 @@ import panel as pn
 import plotly.graph_objects as go
 from tkinter import ttk
 import tkinter as tk
+
+import numpy as np
+import pandas as pd
 from scipy.optimize import curve_fit
 import pandas as pd
 import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from tracker.trackerVideo import main as trackear_video
 
 
@@ -87,11 +91,15 @@ def main():
     root.mainloop()
 
 
-def velocidad_promedio_y(df):
+def velocidad_promedio_y(df, recorte_bordes=5):
+    if len(df) > recorte_bordes:
+        df = df.iloc[0:-recorte_bordes]
     return df['Velocidad_Y'].mean()
 
 
-def aceleración_promedio_y(df):
+def aceleración_promedio_y(df, recorte_bordes_finales=5, recorte_bordes_iniciales=2):
+    if len(df) > (recorte_bordes_finales + recorte_bordes_iniciales):
+        df = df.iloc[recorte_bordes_iniciales:-recorte_bordes_finales]
     return df['Aceleracion_Y'].mean()
 
 
@@ -111,10 +119,11 @@ def calcular_mruv(tiempos, altura_caida):
     return posiciones_mruv, velocidades_mruv, aceleraciones_mruv
 
 
-def graficar_resultados(csv_path, altura_caida, titulo, recorte_bordes=6):
+
+def graficar_resultados(csv_path, altura_caida,titulo, recorte_bordes=5):
     # Leer el archivo CSV con los datos completos
     df = pd.read_csv(csv_path)
-
+    
     # Crear el eje de tiempo basado en los frames
     tiempos = df['Frame'] / 60
 
@@ -133,6 +142,8 @@ def graficar_resultados(csv_path, altura_caida, titulo, recorte_bordes=6):
             height=500
         )
         return pn.pane.Plotly(fig, config={'responsive': True})
+    
+    #El recorte no se aplica a la posicion ya que el grafico se ve bien.
 
     tabs = pn.Tabs(
         ("Posición en X", crear_figura("Posición en X vs Tiempo", [
@@ -144,7 +155,7 @@ def graficar_resultados(csv_path, altura_caida, titulo, recorte_bordes=6):
             go.Scatter(x=tiempos, y=df['Y_metros'],
                        mode='lines+markers', name='Real'),
             go.Scatter(x=tiempos, y=posiciones_mruv,
-                       mode='lines', name='MRUV'),
+                       mode='lines', name='Caida libre sin rozamiento'),
             go.Scatter(x=tiempos, y=df['Posicion_Ajuste_Viscoso_Y'], mode='lines',
                        name='Ajuste al modelo viscoso', line=dict(dash='dash')),
             go.Scatter(x=tiempos, y=df['Posicion_Y_Teorico'], mode='lines',
@@ -152,34 +163,35 @@ def graficar_resultados(csv_path, altura_caida, titulo, recorte_bordes=6):
         ], "Tiempo (s)", "Altura Y (m)")),
 
         ("Velocidad en X", crear_figura("Velocidad en X vs Tiempo", [
-            go.Scatter(x=tiempos, y=df['Velocidad_X'],
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Velocidad_X'],
                        mode='lines+markers', name='Real')
         ], "Tiempo (s)", "Velocidad X (m/s)")),
 
         ("Velocidad en Y", crear_figura("Velocidad en Y vs Tiempo", [
-            go.Scatter(x=tiempos, y=df['Velocidad_Y'],
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Velocidad_Y'],
                        mode='lines+markers', name='Real'),
-            go.Scatter(x=tiempos, y=velocidades_mruv,
-                       mode='lines', name='MRUV'),
-            go.Scatter(x=tiempos, y=df['Velocidad_Ajuste_Viscoso_Y'], mode='lines',
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=velocidades_mruv,
+                       mode='lines', name='Caida libre sin rozamiento'),
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Velocidad_Ajuste_Viscoso_Y'], mode='lines',
                        name='Ajuste al modelo viscoso', line=dict(dash='dash')),
-            go.Scatter(x=tiempos, y=df['Velocidad_Y_Teorico'], mode='lines',
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Velocidad_Y_Teorico'], mode='lines',
                        name='Modelo viscoso', line=dict(dash='dot', color='magenta'))
 
         ], "Tiempo (s)", "Velocidad Y (m/s)")),
 
         ("Aceleración en X", crear_figura("Aceleración en X vs Tiempo", [
-            go.Scatter(x=tiempos, y=df['Aceleracion_X'],
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Aceleracion_X'],
                        mode='lines+markers', name='Real')
         ], "Tiempo (s)", "Aceleración X (m/s²)")),
 
+        #En la aceleracion en Y, se recortan los primeros 2 frames ya que quedaban en 0
         ("Aceleración en Y", crear_figura("Aceleración en Y vs Tiempo", [
-            go.Scatter(x=tiempos, y=df['Aceleracion_Y'],
-                       mode='lines+markers', name='Real'),
-            go.Scatter(x=tiempos, y=aceleraciones_mruv,
-                       mode='lines', name='MRUV'),
-            go.Scatter(x=tiempos, y=df['Aceleracion_Ajuste_Viscoso_Y'], mode='lines',
-                       name='Ajuste constante', line=dict(dash='dash'))
+            go.Scatter(x=tiempos[2:-recorte_bordes], y=df['Aceleracion_Y'].iloc[2:],
+                    mode='lines+markers', name='Real'),
+            go.Scatter(x=tiempos[2:-recorte_bordes], y=aceleraciones_mruv[2:],
+                    mode='lines', name='Caida libre sin rozamiento'),
+            go.Scatter(x=tiempos[2:-recorte_bordes], y=df['Aceleracion_Ajuste_Viscoso_Y'].iloc[2:], mode='lines',
+                    name='Ajuste constante', line=dict(dash='dash'))
         ], "Tiempo (s)", "Aceleración Y (m/s²)")),
 
         ("Fuerza vs Velocidad", crear_figura("Fuerza de Rozamiento vs Velocidad", [
@@ -190,37 +202,37 @@ def graficar_resultados(csv_path, altura_caida, titulo, recorte_bordes=6):
         ], "Velocidad Y (m/s)", "Fuerza (N)")),
 
         ("Fuerza vs Tiempo", crear_figura("Fuerza de Rozamiento vs Tiempo", [
-            go.Scatter(x=tiempos, y=df['Fuerza_Rozamiento_Y'],
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Fuerza_Rozamiento_Y'],
                        mode='lines+markers', name='Fuerza Viscosa según datos experimentales'),
             go.Scatter(x=tiempos, y=df['Fuerza_Rozamiento_Y_Teorico'],
                        mode='lines+markers', name='Fuerza Viscosa según modelo viscoso')
         ], "Tiempo (s)", "Fuerza (N)")),
 
         ("Impulso vs Tiempo", crear_figura("Impulso vs Tiempo", [
-            go.Scatter(x=tiempos, y=df['Impulso'],
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Impulso'],
                        mode='lines+markers', name='Impulso Experimental', line=dict(color='lightgreen')),
             go.Scatter(x=tiempos, y=df['Impulso_Teorico'],
                        mode='lines+markers', name='Impulso según modelo viscoso', line=dict(color='green'))
         ], "Tiempo (s)", "Impulso (N·s)")),
 
         ("Energías vs Tiempo", crear_figura("Energía Potencial, Cinética y Mecánica vs Tiempo", [
-            go.Scatter(x=tiempos, y=df['Energia_Potencial'], mode='lines',
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Energia_Potencial'], mode='lines',
                        name='E. Potencial (Experimental)', line=dict(color='blue')),
-            go.Scatter(x=tiempos, y=df['Energia_Cinetica'], mode='lines',
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Energia_Cinetica'], mode='lines',
                        name='E. Cinética (Experimental)', line=dict(color='red')),
-            go.Scatter(x=tiempos, y=df['Energia_Mecanica'], mode='lines',
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Energia_Mecanica'], mode='lines',
                        name='E. Mecánica (Experimental)', line=dict(color='green')),
-            go.Scatter(x=tiempos, y=df['Energia_Potencial_Teorico'], mode='lines',
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Energia_Potencial_Teorico'], mode='lines',
                        name='E. Potencial (Viscoso)', line=dict(color='navy', dash='dot')),
-            go.Scatter(x=tiempos, y=df['Energia_Cinetica_Teorico'], mode='lines',
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Energia_Cinetica_Teorico'], mode='lines',
                        name='E. Cinética (Viscoso)', line=dict(color='darkred', dash='dot')),
-            go.Scatter(x=tiempos, y=df['Energia_Mecanica_Teorico'], mode='lines',
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Energia_Mecanica_Teorico'], mode='lines',
                        name='E. Mecánica (Viscoso)', line=dict(color='darkgreen', dash='dot')),
-            go.Scatter(x=tiempos, y=df['Energia_Potencial_Ajuste'], mode='lines',
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Energia_Potencial_Ajuste'], mode='lines',
                        name='E. Potencial (Ajuste)', line=dict(color='deepskyblue', dash='dash')),
-            go.Scatter(x=tiempos, y=df['Energia_Cinetica_Ajuste'], mode='lines',
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Energia_Cinetica_Ajuste'], mode='lines',
                        name='E. Cinética (Ajuste)', line=dict(color='orange', dash='dash')),
-            go.Scatter(x=tiempos, y=df['Energia_Mecanica_Ajuste'], mode='lines',
+            go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Energia_Mecanica_Ajuste'], mode='lines',
                        name='E. Mecánica (Ajuste)', line=dict(color='lime', dash='dash'))
         ], "Tiempo (s)", "Energía (J)")),
     )

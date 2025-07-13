@@ -244,10 +244,20 @@ def ajuste_lineal(t, y):
     return modelo(t, *params), params
 
 
-def ajuste_constante(t, y):
+def ajuste_constante(t, df):
+    #Se recortan los primeros 2 frames y los últimos 5 para evitar ruido al inicio y final
+    #Como la funcion sera constante, se rellenan con el valor de cualquier otro frame
+    t_recortado = t[2:-5]
+    df_recortado = df.iloc[2:-5]
     def modelo(t, c): return np.full_like(t, c)
-    params, _ = curve_fit(modelo, t, y)
-    return modelo(t, *params), params
+    params, _ = curve_fit(modelo, t_recortado, df_recortado)
+    ajuste = modelo(t_recortado, *params)
+    
+    # Completar con valor constante al inicio y final para que tenga la longitud original
+    ajuste_completo = np.full(len(df), ajuste[0])
+    ajuste_completo[2:-5] = ajuste
+    
+    return ajuste_completo, params
 
 
 def ajuste_posicion_viscoso(t, y, masa, altura_inicial):
