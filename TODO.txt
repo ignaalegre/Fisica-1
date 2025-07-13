@@ -54,4 +54,4 @@ PARTE 2: DINAMICA
 
 [ 🚫 ] Falta el trabajo de la fuerzaz peso
 
-[ 🚫 ]
+[ 🚫 ] Actualizar el resumen de la página de los gráficos para que muestre el impulso total teórico y experimental
