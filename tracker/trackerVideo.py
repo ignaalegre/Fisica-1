@@ -99,10 +99,25 @@ def inicializar_video(path):
 
 
 def seleccionar_roi(frame):
-    # Seleccioná el ROI (Región de Interés)
-    bbox = cv2.selectROI("Tracking", frame, False)
+    ESCALA_VENTANA = 0.5
+    alto, ancho = frame.shape[:2]
+    frame_resized = cv2.resize(frame, (int(ancho * ESCALA_VENTANA), int(alto * ESCALA_VENTANA)))
+    cv2.namedWindow("Seleccionar ROI", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Seleccionar ROI", 600, 1000)
+
+    # Seleccionar ROI sobre el frame reducido
+    bbox_resized = cv2.selectROI("Seleccionar ROI", frame_resized, False)
+    cv2.destroyWindow("Seleccionar ROI")
+
+    # Escalás de nuevo las coordenadas a las del frame original
+    bbox = (
+        int(bbox_resized[0] / ESCALA_VENTANA),
+        int(bbox_resized[1] / ESCALA_VENTANA),
+        int(bbox_resized[2] / ESCALA_VENTANA),
+        int(bbox_resized[3] / ESCALA_VENTANA),
+    )
+
     tracker = cv2.TrackerCSRT.create()
-    # Inicializá el tracker con el primer frame y la ROI seleccionada
     tracker.init(frame, bbox)
     return tracker, bbox
 
@@ -118,6 +133,8 @@ def procesar_video(video, tracker):
     prev_center = None
     first_center = None
     prev_velocity = None  # Para calcular la aceleración
+    cv2.namedWindow("Tracking", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Tracking", 600, 1000)
 
     while True:
         ok, frame = video.read()
