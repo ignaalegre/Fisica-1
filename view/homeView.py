@@ -49,9 +49,51 @@ def main():
             df = pd.read_csv(ruta_csv)
 
             vel_promedio_y = velocidad_promedio_y(df)
+            velocidad_maxima = df['Velocidad_Y'].abs().max()
             acel_promedio_y = aceleración_promedio_y(df)
-            print(f"Aceleración promedio basado en el csv: {acel_promedio_y}")
-            print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
+            aceleracion_terminal_aproximada = df['Aceleracion_Y'].rolling(3).mean().iloc[-6] #Recorto los ultimos 6 frames para evitar ruido
+            energia_cinetica_maxima = df['Energia_Cinetica'].max()
+            fuerza_rozamiento_max = df['Fuerza_Rozamiento_Y'].max()
+            energia_mecanica_inicial = df['Energia_Mecanica'].iloc[0]
+            energia_mecanica_final_aproximada = df['Energia_Mecanica'].rolling(3).mean().iloc[-6]
+            perdida_energia_mecanica = energia_mecanica_inicial - energia_mecanica_final_aproximada
+            fuerza_rozamiento_teorica_max = df['Fuerza_Rozamiento_Y_Teorico'].max()
+            impulso_maximo = df['Impulso'].max()
+            impulso_teorico_maximo = df['Impulso_Teorico'].max()
+            diferencia_impulso = impulso_maximo - impulso_teorico_maximo
+            tiempo_total = df['Frame'].iloc[-1] / 60
+            
+            print(f"Datos del experimento: {seleccion}")
+            print("--" * 40)
+            print(f"Altura de caída: {ALTURA_CAIDA} m")
+            print("Masa del objeto: 0.1 kg")
+            print(f"Tiempo total de caída: {tiempo_total} s")
+            print("--" * 40)
+            print("VELOCIDAD\n")
+            print(f"Velocidad máxima en Y: -{velocidad_maxima} m/s")
+            print(f"Velocidad promedio basado en el csv: {vel_promedio_y}m/s")
+            print("--" * 40)
+            print("ACELERACIÓN\n")
+            print(f"Aceleración terminal en Y (aproximada): {aceleracion_terminal_aproximada} m/s²")
+            print(f"Aceleración promedio basado en el csv: {acel_promedio_y} m/s²")
+            print("--" * 40)
+            print("FUERZAS\n")
+            print(f"Fuerza de rozamiento máxima (experimental): {fuerza_rozamiento_max} N")
+            print(f"Fuerza de rozamiento máxima (modelo viscoso): {fuerza_rozamiento_teorica_max} N")
+            print("--" * 40)
+            print("ENERGÍAS\n")
+            print(f"Energía mecánica inicial: {energia_mecanica_inicial} J")
+            print(f"Energía mecánica final aproximada: {energia_mecanica_final_aproximada} J")
+            print(f"Pérdida de energía mecánica: {perdida_energia_mecanica} J")
+            print(f"Energía cinética máxima: {energia_cinetica_maxima} J")
+            print("--" * 40)
+            print("IMPULSO\n")
+            print(f"Impulso máximo (experimental): {impulso_maximo} N·s")
+            print(f"Impulso máximo (modelo viscoso): {impulso_teorico_maximo} N·s")
+            print(f"Diferencia entre impulso máximo experimental y teórico: {diferencia_impulso} N·s")
+            
+            
+
 
             panel, tabs = graficar_resultados(
                 ruta_csv, ALTURA_CAIDA, seleccion)
