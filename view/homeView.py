@@ -1,4 +1,5 @@
 
+from tracker.trackerVideo import main as trackear_video
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
@@ -12,7 +13,6 @@ import os
 import io
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from tracker.trackerVideo import main as trackear_video
 
 
 def main():
@@ -47,13 +47,13 @@ def main():
         def task():
             df = pd.read_csv(ruta_csv)
 
-            estimar_constante_viscosa_con_ajuste_cuadrático(df, MASA_OBJETO)
             vel_promedio_y = velocidad_promedio_y(df)
             acel_promedio_y = aceleración_promedio_y(df)
             print(f"Aceleración promedio basado en el csv: {acel_promedio_y}")
             print(f"Velocidad promedio basado en el csv: {vel_promedio_y}")
 
-            panel,tabs = graficar_resultados(ruta_csv, ALTURA_CAIDA, seleccion)
+            panel, tabs = graficar_resultados(
+                ruta_csv, ALTURA_CAIDA, seleccion)
             sys.stdout = sys_stdout_original
             resumen_texto = buffer.getvalue()
             resumen_pane = pn.pane.Markdown(
@@ -62,7 +62,7 @@ def main():
             panel.show()
 
         threading.Thread(target=task, daemon=True).start()
-        
+
     def track_video():
         print("Iniciar el tracker de video...", ruta_video)
         trackear_video(ruta_csv, ruta_video)
@@ -90,45 +90,6 @@ def main():
     root.mainloop()
 
 
-def ajuste_parabolico(t, y):
-    def modelo(t, a, b, c): return a * t**2 + b * t + c
-    params, _ = curve_fit(modelo, t, y)
-    return modelo(t, *params), params
-
-
-def ajuste_lineal(t, y):
-    def modelo(t, m, b): return m * t + b
-    params, _ = curve_fit(modelo, t, y)
-    return modelo(t, *params), params
-
-
-
-
-def estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto):
-    # Recortar posibles extremos ruidosos
-    df = df.iloc[0:-5] if len(df) > 10 else df.copy()
-
-    # Realizar el ajuste lineal a_Y = a0 + b * v_Y
-    vel_y = df['Velocidad_Y'].values
-    acel_y = df['Aceleracion_Y'].values
-
-    ajustado, (a, b, c) = ajuste_parabolico(vel_y, acel_y)
-
-    k = -masa_objeto * b  # porque b ≈ -k/m
-
-    # Calcular R²
-    ss_res = np.sum((acel_y - ajustado) ** 2)
-    ss_tot = np.sum((acel_y - np.mean(acel_y)) ** 2)
-    r2 = 1 - ss_res / ss_tot
-
-    print(f"Modelo ajustado: a_Y = {c:.3f} + ({b:.3f})*v_Y + ({a:.3f})*v_Y²")
-    print(
-        f"Constante viscosa estimada con ajuste parabólico: k = {k:.4f} kg/s")
-    print(f"Coeficiente de correlación R² = {r2:.4f}")
-
-    return k
-
-
 def velocidad_promedio_y(df):
     return df['Velocidad_Y'].mean()
 
@@ -153,8 +114,7 @@ def calcular_mruv(tiempos, altura_caida):
     return posiciones_mruv, velocidades_mruv, aceleraciones_mruv
 
 
-
-def graficar_resultados(csv_path, altura_caida,titulo, recorte_bordes=6):
+def graficar_resultados(csv_path, altura_caida, titulo, recorte_bordes=6):
     # Leer el archivo CSV con los datos completos
     df = pd.read_csv(csv_path)
 
@@ -267,7 +227,6 @@ def graficar_resultados(csv_path, altura_caida,titulo, recorte_bordes=6):
     )
     header = pn.pane.Markdown(f"# {titulo}", sizing_mode='stretch_width')
     return pn.Column(header, tabs, sizing_mode='stretch_both'), tabs
-
 
 
 if __name__ == "__main__":
