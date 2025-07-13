@@ -1,5 +1,4 @@
 
-from tracker.trackerVideo import main as trackear_video
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
@@ -13,6 +12,8 @@ import os
 import io
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from tracker.trackerVideo import main as trackear_video
 
 
 def main():
