@@ -94,8 +94,6 @@ def inicializar_video(path):
         print("No se pudo leer el video")
         exit()
 
-    # Da vuelta el video
-    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
 
     return video, frame
 
@@ -126,8 +124,6 @@ def procesar_video(video, tracker):
         if not ok:
             break
 
-        # FLipeo el video
-        frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
         frame_count += 1
 
         # Actualizá el tracker
