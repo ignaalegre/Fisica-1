@@ -50,8 +50,6 @@ PARTE 2: DINAMICA
 
 [ ✅ ] Para energia: Integrar F en funcion del tiempo, eso va a ser impulso, y podemos saber el impulso que nos va a estar haciendo la fuerza viscosa.
 
-[ 🚫 ] Falta trabajo acumulado y total de la fuerza viscosa
-
-[ 🚫 ] Falta el trabajo de la fuerzaz peso
+[ 🚫 ] Falta trabajo total que es = Energía mecánica (del sistema, ya involucra el trabajo del peso) - Trabajo de la fuerza viscosa
 
 [ 🚫 ] Actualizar el resumen de la página de los gráficos para que muestre el impulso total teórico y experimental
