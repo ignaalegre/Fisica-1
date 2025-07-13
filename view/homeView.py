@@ -1,23 +1,20 @@
-
-from tracker.trackerVideo import main as trackear_video
-import numpy as np
-import pandas as pd
-from scipy.optimize import curve_fit
-import tkinter as tk
-from tkinter import ttk
-import plotly.graph_objects as go
-import panel as pn
-import threading
-import sys
-import os
 import io
-
+import os
+import sys
+import threading
+import panel as pn
+import plotly.graph_objects as go
+from tkinter import ttk
+import tkinter as tk
+from scipy.optimize import curve_fit
+import pandas as pd
+import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from tracker.trackerVideo import main as trackear_video
 
 
 def main():
     ALTURA_CAIDA = 4.28
-    MASA_OBJETO = 0.1
 
     archivos = {
         "Sin Globo": ("data/trayectoria_sin_globo.csv", 'media/oso_recortados/oso_sin_globo.mov'),
@@ -118,10 +115,6 @@ def graficar_resultados(csv_path, altura_caida, titulo, recorte_bordes=6):
     # Leer el archivo CSV con los datos completos
     df = pd.read_csv(csv_path)
 
-    # Recortar bordes problemáticos
-    if len(df) > 2 * recorte_bordes:
-        df = df.iloc[0:-recorte_bordes]
-
     # Crear el eje de tiempo basado en los frames
     tiempos = df['Frame'] / 60
 
@@ -191,17 +184,23 @@ def graficar_resultados(csv_path, altura_caida, titulo, recorte_bordes=6):
 
         ("Fuerza vs Velocidad", crear_figura("Fuerza de Rozamiento vs Velocidad", [
             go.Scatter(x=df['Velocidad_Y'], y=df['Fuerza_Rozamiento_Y'],
-                       mode='lines+markers', name='Datos')
+                       mode='lines+markers', name='Fuerza Viscosa según datos reales', line=dict(color='pink')),
+            go.Scatter(x=df['Velocidad_Y'], y=df['Fuerza_Rozamiento_Y_Teorico'],
+                       mode='lines+markers', name='Fuerza Viscosa según modelo viscoso')
         ], "Velocidad Y (m/s)", "Fuerza (N)")),
 
         ("Fuerza vs Tiempo", crear_figura("Fuerza de Rozamiento vs Tiempo", [
             go.Scatter(x=tiempos, y=df['Fuerza_Rozamiento_Y'],
-                       mode='lines+markers', name='Fuerza')
+                       mode='lines+markers', name='Fuerza Viscosa según datos experimentales'),
+            go.Scatter(x=tiempos, y=df['Fuerza_Rozamiento_Y_Teorico'],
+                       mode='lines+markers', name='Fuerza Viscosa según modelo viscoso')
         ], "Tiempo (s)", "Fuerza (N)")),
 
         ("Impulso vs Tiempo", crear_figura("Impulso vs Tiempo", [
             go.Scatter(x=tiempos, y=df['Impulso'],
-                       mode='lines+markers', name='Impulso Experimental', line=dict(color='lightgreen'))
+                       mode='lines+markers', name='Impulso Experimental', line=dict(color='lightgreen')),
+            go.Scatter(x=tiempos, y=df['Impulso_Teorico'],
+                       mode='lines+markers', name='Impulso según modelo viscoso', line=dict(color='green'))
         ], "Tiempo (s)", "Impulso (N·s)")),
 
         ("Energías vs Tiempo", crear_figura("Energía Potencial, Cinética y Mecánica vs Tiempo", [

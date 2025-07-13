@@ -34,29 +34,30 @@ def main(csv_path, video_path):
     df = calcular_velocidades_aceleraciones(
         'tracker/csv_generados/trayectoria_objeto_metros.csv', FPS)
 
-    # Calcular fuerza de rozamiento
-    calcular_fuerza_rozamiento(df, MASA_OBJETO)
     # Calcular constante viscosa
     k_estimado = estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
+    print(f"K estimado: {k_estimado}")
     tiempos = df['Frame'] / FPS
-    calcular_modelo_viscoso(
-        df, tiempos.values, MASA_OBJETO, k_estimado, ALTURA_CAIDA)
-    ajuste_pos_Y, coef_pos_Y = ajuste_posicion_viscoso(
-        tiempos, df['Y_metros'].values, MASA_OBJETO, ALTURA_CAIDA)
-    ajuste_vel_Y, coef_vel_Y = ajuste_velocidad_viscoso(
-        tiempos, df['Velocidad_Y'].values, MASA_OBJETO)
+    calcular_modelo_viscoso(df, tiempos.values, MASA_OBJETO, k_estimado, ALTURA_CAIDA)
+    ajuste_pos_Y, coef_pos_Y = ajuste_posicion_viscoso(tiempos, df['Y_metros'], MASA_OBJETO, ALTURA_CAIDA)
+    ajuste_vel_Y, coef_vel_Y = ajuste_velocidad_viscoso(tiempos, df['Velocidad_Y'], MASA_OBJETO)
     ajuste_ace_Y, coef_ace_Y = ajuste_constante(tiempos, df['Aceleracion_Y'])
 
     print("\n--- Ajustes ---")
-    print(f"Posición Y: k={coef_pos_Y[0]:.3f}")
-    print(f"Velocidad Y: k={coef_vel_Y[0]:.3f}")
+    print(f"Posición Y: coeficiente={coef_pos_Y[0]:.3f}")
+    print(f"Velocidad Y: coeficiente={coef_vel_Y[0]:.3f}")
     print(f"Aceleración Y constante: {coef_ace_Y[0]:.3f}")
 
     df['Posicion_Ajuste_Viscoso_Y'] = ajuste_pos_Y
     df['Velocidad_Ajuste_Viscoso_Y'] = ajuste_vel_Y
     df['Aceleracion_Ajuste_Viscoso_Y'] = ajuste_ace_Y
 
+    # Calcular fuerza de rozamiento
+    calcular_fuerza_rozamiento(df, MASA_OBJETO)
+    calcular_fuerza_rozamiento_teorico(df, MASA_OBJETO)
+
     calcular_impulso_experimental(df, FPS)
+    calcular_impulso_teorico(df, FPS)
     E_pot_real, E_cin_real, E_mec_real = calculos_Energia(
         df['Y_metros'], MASA_OBJETO, df['Velocidad_Y'])
 
@@ -339,6 +340,7 @@ def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
     vel_y = df['Velocidad_Y'].values
     acel_y = df['Aceleracion_Y'].values
     _, (m, b) = ajuste_lineal(vel_y, acel_y)
+    print(f"m = {m} y b= {b}")
     k = -masa_objeto * m  # porque m ≈ -k/m
     return k
 
@@ -367,6 +369,11 @@ def calcular_fuerza_rozamiento(df, masa_objeto):
     df['Fuerza_Rozamiento_Y'] = -k * df['Velocidad_Y']
 
 
+def calcular_fuerza_rozamiento_teorico(df, masa_objeto):
+    k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
+    df['Fuerza_Rozamiento_Y_Teorico'] = -k * df['Velocidad_Y_Teorico']
+
+
 def calcular_modelo_viscoso(df, tiempos, masa, k, altura_inicial):
     """
     Derivación:
@@ -375,7 +382,7 @@ def calcular_modelo_viscoso(df, tiempos, masa, k, altura_inicial):
         dv/dt + (k/m)v = -g   → EDO lineal
 
     Solución por factor integrante:
-        v(t) = (m*-g/k)(1 - e^(-k·t/m))
+        v(t) = -(m*g/k)(1 - e^(-k·t/m))
 
     Luego, integrando para y(t):
         y(t) = y0 - (mg/k)t + (m²g/k²)(1 - e^(-k·t/m))
@@ -393,8 +400,7 @@ def calcular_modelo_viscoso(df, tiempos, masa, k, altura_inicial):
     g = 9.81
     v_terminal = masa * -g / k
     vel = v_terminal * (1 - np.exp(-k * tiempos / masa))
-    pos = altura_inicial + v_terminal * tiempos - \
-        (masa * v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
+    pos = altura_inicial + v_terminal * tiempos - (masa * v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
     df['Velocidad_Y_Teorico'] = vel
     df['Posicion_Y_Teorico'] = pos
 
@@ -408,6 +414,14 @@ def calcular_impulso_experimental(df, fps):
     impulso = np.cumsum(fuerza) * dt
     df['Impulso'] = impulso
     print(f"Impulso experimental total = {impulso[-1]:.4f} N·s")
+
+
+def calcular_impulso_teorico(df, fps):
+    fuerza = df['Fuerza_Rozamiento_Y_Teorico'].values
+    dt = 1.0 / fps
+    impulso = np.cumsum(fuerza) * dt
+    df['Impulso_Teorico'] = impulso
+    print(f"Impulso teórico total = {impulso[-1]:.4f} N·s")
 
 
 def calculos_Energia(altura, masa, velocidad):
