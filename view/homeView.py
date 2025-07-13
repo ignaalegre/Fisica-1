@@ -53,13 +53,13 @@ def main():
             acel_promedio_y = aceleración_promedio_y(df)
             aceleracion_terminal_aproximada = df['Aceleracion_Y'].rolling(3).mean().iloc[-6] #Recorto los ultimos 6 frames para evitar ruido
             energia_cinetica_maxima = df['Energia_Cinetica'].max()
-            fuerza_rozamiento_max = df['Fuerza_Rozamiento_Y'].abs().max()
             energia_mecanica_inicial = df['Energia_Mecanica'].iloc[0]
             energia_mecanica_final_aproximada = df['Energia_Mecanica'].rolling(3).mean().iloc[-6]
             variacion_energia_mecanica = energia_mecanica_final_aproximada - energia_mecanica_inicial
+            fuerza_rozamiento_max = df['Fuerza_Rozamiento_Y'].abs().max()
             fuerza_rozamiento_teorica_max = df['Fuerza_Rozamiento_Y_Teorico'].max()
             impulso_maximo = df['Impulso'].abs().max()
-            impulso_teorico_maximo = df['Impulso_Teorico'].min()
+            impulso_teorico_maximo = df['Impulso_Teorico'].abs().max()
             diferencia_impulso = impulso_maximo - impulso_teorico_maximo
             tiempo_total = df['Frame'].iloc[-1] / 60
             

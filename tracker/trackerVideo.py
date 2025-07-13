@@ -216,6 +216,10 @@ def procesar_video(video, tracker):
 
 
 def calcular_factor_conversion(altura_caida, desplazamientos_ternarios):
+    """
+    Calcula el factor de conversión de píxeles a metros basado en los desplazamientos
+    y la altura de caída del objeto.
+    """
     if not desplazamientos_ternarios:
         print("No hay desplazamientos para calcular factor de conversión.")
         return None
@@ -246,18 +250,21 @@ def guardar_csv(centros, factor_px_a_m, altura_caida):
 
 
 def ajuste_parabolico(t, y):
+    """Ajusta una curva parabólica a los datos (t, y) usando la forma y = a*t^2 + b*t + c."""
     def modelo(t, a, b, c): return a * t**2 + b * t + c
     params, _ = curve_fit(modelo, t, y)
     return modelo(t, *params), params
 
 
 def ajuste_lineal(t, y):
+    """Ajusta una línea recta a los datos (t, y) usando la forma y = m*t + b."""
     def modelo(t, m, b): return m * t + b
     params, _ = curve_fit(modelo, t, y)
     return modelo(t, *params), params
 
 
 def ajuste_constante(t, df):
+    """Ajusta una constante a los datos (t, df) usando la forma df = c."""
     #Se recortan los primeros 2 frames y los últimos 5 para evitar ruido al inicio y final
     #Como la funcion sera constante, se rellenan con el valor de cualquier otro frame
     t_recortado = t[2:-5]
@@ -274,6 +281,8 @@ def ajuste_constante(t, df):
 
 
 def ajuste_posicion_viscoso(t, y, masa, altura_inicial):
+    """Ajusta una curva exponencial a los datos de posición (t, y) usando la forma
+    y = y0 + v_terminal * t - (m * v_terminal / k) * (1 - exp(-k * t / m))"""
     def modelo_posicion(t, k):
         g = 9.81
         v_terminal = masa * -g / k
@@ -393,6 +402,13 @@ def calcular_fuerza_rozamiento(df, masa_objeto):
 
 
 def calcular_fuerza_rozamiento_teorico(df, masa_objeto):
+    """Calcula la fuerza de rozamiento teórica usando la constante viscosa estimada.
+    La fuerza de rozamiento es F = -k * v, donde k es la constante de rozamiento
+    y v es la velocidad del objeto.
+    Parámetros:
+        - df: DataFrame con las velocidades teóricas
+        - masa_objeto: Masa del objeto (kg)"""
+        
     k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
     df['Fuerza_Rozamiento_Y_Teorico'] = -k * df['Velocidad_Y_Teorico']
 
@@ -430,6 +446,11 @@ def calcular_modelo_viscoso(df, tiempos, masa, k, altura_inicial):
 
 
 def calcular_impulso_experimental(df, fps):
+    """ Calcula el impulso experimental a partir de la fuerza de rozamiento medida.
+    El impulso es la integral de la fuerza respecto al tiempo.
+    Parámetros:
+        - df: DataFrame con la columna 'Fuerza_Rozamiento_Y'
+        - fps: Frames por segundo del video"""
     fuerza = df['Fuerza_Rozamiento_Y'].values
     dt = 1.0 / fps
     impulso = np.cumsum(fuerza) * dt
@@ -438,6 +459,10 @@ def calcular_impulso_experimental(df, fps):
 
 
 def calcular_impulso_teorico(df, fps):
+    """ Calcula el impulso teórico a partir de la fuerza de rozamiento teórica.
+    Parámetros:
+        - df: DataFrame con la columna 'Fuerza_Rozamiento_Y_Teorico'
+        - fps: Frames por segundo del video"""
     fuerza = df['Fuerza_Rozamiento_Y_Teorico'].values
     dt = 1.0 / fps
     impulso = np.cumsum(fuerza) * dt
