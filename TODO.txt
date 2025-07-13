@@ -53,6 +53,6 @@ PARTE 3: IMPULSO Y ENERGIA
 
 [ ✅ ] Para energia: Integrar F en funcion del tiempo, eso va a ser impulso, y podemos saber el impulso que nos va a estar haciendo la fuerza viscosa.
 
-[ 🚫 ] Falta trabajo de la F viscosa que es = Variacion de Energía mecánica del sistema
+[ ✅ ] Falta trabajo de la F viscosa que es = Variacion de Energía mecánica del sistema
 
 [ 🚫 ] Actualizar el resumen de la página de los gráficos para que muestre el impulso total teórico y experimental
