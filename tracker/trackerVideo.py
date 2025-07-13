@@ -403,14 +403,12 @@ def calcular_modelo_viscoso(df, tiempos, masa, k, altura_inicial):
         - k: constante de rozamiento viscoso (kg/s)
         - altura_inicial: y0 (m)
 
-    Devuelve:
-        - velocidades según el modelo con rozamiento viscoso
-        - posiciones según el mismo modelo
     """
     g = 9.81
     v_terminal = masa * -g / k
     vel = v_terminal * (1 - np.exp(-k * tiempos / masa))
-    pos = altura_inicial + v_terminal * tiempos - (masa * v_terminal / k) * (1 - np.exp(-k * tiempos / masa))
+    pos = altura_inicial - (masa * g / k) * tiempos + (masa**2 * g / k**2) * (1 - np.exp(-k * tiempos / masa))
+
     df['Velocidad_Y_Teorico'] = vel
     df['Posicion_Y_Teorico'] = pos
 
