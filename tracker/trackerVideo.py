@@ -55,9 +55,17 @@ def main(csv_path, video_path):
     # Calcular fuerza de rozamiento
     calcular_fuerza_rozamiento(df, MASA_OBJETO)
     calcular_fuerza_rozamiento_teorico(df, MASA_OBJETO)
-
+    
+    
+    # Calcular impulso experimental y teórico
     calcular_impulso_experimental(df, FPS)
     calcular_impulso_teorico(df, FPS)
+    
+    #Calcular trabajo experimental y teórico
+    calcular_trabajo_experimental(df, FPS)
+    calcular_trabajo_teorico(df, FPS)
+    
+    # Calcular energía potencial, cinética y mecánica
     E_pot_real, E_cin_real, E_mec_real = calculos_Energia(
         df['Y_metros'], MASA_OBJETO, df['Velocidad_Y'])
 
@@ -411,6 +419,7 @@ def calcular_fuerza_rozamiento_teorico(df, masa_objeto):
         
     k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
     df['Fuerza_Rozamiento_Y_Teorico'] = -k * df['Velocidad_Y_Teorico']
+    
 
 
 def calcular_modelo_viscoso(df, tiempos, masa, k, altura_inicial):
@@ -468,6 +477,31 @@ def calcular_impulso_teorico(df, fps):
     impulso = np.cumsum(fuerza) * dt
     df['Impulso_Teorico'] = impulso
     print(f"Impulso teórico total = {impulso[-1]:.4f} N·s")
+    
+def calcular_trabajo_experimental(df,fps):
+    """Calcula el trabajo realizado por la fuerza de rozamiento experimental.
+    El trabajo es la integral de la fuerza respecto al desplazamiento.
+    Parámetros:
+        - df: DataFrame con la columna 'Fuerza_Rozamiento_Y'
+        - fps: Frames por segundo del video"""
+    fuerza = df['Fuerza_Rozamiento_Y'].values
+    desplazamientos = df['Y_metros'].diff().fillna(0).values
+    trabajo = np.cumsum(fuerza * desplazamientos)
+    df['Trabajo_Experimental'] = trabajo
+    
+
+
+def calcular_trabajo_teorico(df,fps):
+    """Calcula el trabajo realizado por la fuerza de rozamiento teórica.
+    Parámetros:
+        - df: DataFrame con la columna 'Fuerza_Rozamiento_Y_Teorico'
+        - fps: Frames por segundo del video"""
+    fuerza = df['Fuerza_Rozamiento_Y_Teorico'].values
+    desplazamientos = df['Y_metros'].diff().fillna(0).values
+    trabajo = np.cumsum(fuerza * desplazamientos)
+    df['Trabajo_Teorico'] = trabajo
+        
+    
 
 
 def calculos_Energia(altura, masa, velocidad):

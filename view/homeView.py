@@ -62,6 +62,8 @@ def main():
             impulso_teorico_maximo = df['Impulso_Teorico'].abs().max()
             diferencia_impulso = impulso_maximo - impulso_teorico_maximo
             tiempo_total = df['Frame'].iloc[-1] / 60
+            trabajo_experimental = df['Trabajo_Experimental'].iloc[-1]
+            trabajo_teorico = df['Trabajo_Teorico'].iloc[-1]
             
             print(f"Datos del experimento: {seleccion}")
             print("--" * 40)
@@ -91,6 +93,10 @@ def main():
             print(f"Impulso máximo (experimental): {impulso_maximo} N·s")
             print(f"Impulso máximo (modelo viscoso): {impulso_teorico_maximo} N·s")
             print(f"Diferencia entre impulso máximo experimental y teórico: {diferencia_impulso} N·s")
+            print("--" * 40)
+            print("TRABAJO\n")
+            print(f"Trabajo experimental: {trabajo_experimental} J")
+            print(f"Trabajo teórico: {trabajo_teorico} J")
             
             
 
@@ -256,6 +262,14 @@ def graficar_resultados(csv_path, altura_caida,titulo, recorte_bordes=5):
             go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Impulso_Teorico'],
                        mode='lines+markers', name='Impulso según modelo viscoso', line=dict(color='green'))
         ], "Tiempo (s)", "Impulso (N·s)")),
+        ("Trabajo vs Tiempo", crear_figura("Trabajo vs Tiempo", [
+            go.Scatter(x=tiempos, y=df['Trabajo_Experimental'],
+                    mode='lines+markers', name='Trabajo Experimental'),
+            go.Scatter(x=tiempos, y=df['Trabajo_Teorico'],
+                    mode='lines+markers', name='Trabajo Teórico', line=dict(dash='dot'))
+        ], "Tiempo (s)", "Trabajo (J)")),
+        
+        
 
         ("Energías vs Tiempo", crear_figura("Energía Potencial, Cinética y Mecánica vs Tiempo", [
             go.Scatter(x=tiempos[0:-recorte_bordes], y=df['Energia_Potencial'], mode='lines',
