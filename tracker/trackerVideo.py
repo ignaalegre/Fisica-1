@@ -35,7 +35,7 @@ def main(csv_path, video_path):
         'tracker/csv_generados/trayectoria_objeto_metros.csv', FPS)
 
     # Calcular constante viscosa
-    k_estimado = estimar_constante_viscosa_con_ajuste_lineal(df, MASA_OBJETO)
+    k_estimado = estimar_constante_viscosa_terminal(df, MASA_OBJETO)
     print(f"K estimado: {k_estimado}")
     tiempos = df['Frame'] / FPS
     calcular_modelo_viscoso(df, tiempos.values, MASA_OBJETO, k_estimado, ALTURA_CAIDA)
@@ -375,10 +375,36 @@ def aceleración_promedio_y(df):
 
 # DINAMICA
 
+def estimar_constante_viscosa_terminal(df, masa_objeto):
+    """
+    Estima la constante viscosa k usando aceleración y velocidad terminales.
+
+    Parámetros:
+        - df: DataFrame que contiene las columnas 'Aceleracion_Y' y 'Velocidad_Y'.
+        - masa_objeto: Masa del objeto en kg.
+
+    Retorna:
+        - k: Constante viscosa estimada en kg/s.
+    """
+    g = 9.81
+    # Promediar últimos valores para suavizar ruido
+    a_terminal = df['Aceleracion_Y'].rolling(3).mean().iloc[-6]
+    v_terminal = df['Velocidad_Y'].abs().max()
+
+    # Evitar división por cero o valores inválidos
+    if abs(v_terminal) < 1e-6:
+        print("Velocidad terminal demasiado pequeña para estimar k.")
+        return None
+
+    # Cálculo de k basado en equilibrio de fuerzas en estado terminal
+    k = masa_objeto * (g - abs(a_terminal)) / abs(v_terminal)
+    print(f"Estimación k usando valores terminales: k = {k:.5f} kg/s")
+    return k
+
 def estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto):
     # Realizar el ajuste lineal a_Y = a0 + b * v_Y
-    vel_y = df['Velocidad_Y'].values
-    acel_y = df['Aceleracion_Y'].values
+    vel_y = df['Velocidad_Y'].iloc[2:-5].values
+    acel_y = df['Aceleracion_Y'].iloc[2:-5].values
     _, (m, b) = ajuste_lineal(vel_y, acel_y)
     print(f"m = {m} y b= {b}")
     k = -masa_objeto * m  # porque m ≈ -k/m
@@ -405,8 +431,20 @@ def estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto):
 
 
 def calcular_fuerza_rozamiento(df, masa_objeto):
-    k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
-    df['Fuerza_Rozamiento_Y'] = -k * df['Velocidad_Y']
+    """Calcula la fuerza de rozamiento experimental utilizando la constante viscosa estimada.
+    La fuerza de rozamiento es F = -k * v, donde k es la constante de rozamiento
+    y v es la velocidad del objeto."""
+    k1 = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
+    k2 = estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto)
+    k3 = estimar_constante_viscosa_terminal(df, masa_objeto)
+    
+    print(f"Constante de rozamiento estimada con el ajuste lineal: k1 = {k1} kg/s")
+    print(f"Constante de rozamiento estimada con el ajuste cuadrático: k2 = {k2} kg/s")
+    print(f"Constante de rozamiento estimada con el método de velocidad terminal: k3 = {k3} kg/s")
+
+    v = df['Velocidad_Y']
+    print("Calculando fuerza de rozamiento experimental utilizando la constante estimada con el metodo de la velocidad terminal")
+    df['Fuerza_Rozamiento_Y'] = -k3 * v
 
 
 def calcular_fuerza_rozamiento_teorico(df, masa_objeto):
@@ -417,8 +455,13 @@ def calcular_fuerza_rozamiento_teorico(df, masa_objeto):
         - df: DataFrame con las velocidades teóricas
         - masa_objeto: Masa del objeto (kg)"""
         
-    k = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
-    df['Fuerza_Rozamiento_Y_Teorico'] = -k * df['Velocidad_Y_Teorico']
+    k1 = estimar_constante_viscosa_con_ajuste_lineal(df, masa_objeto)
+    k2 = estimar_constante_viscosa_con_ajuste_cuadrático(df, masa_objeto)
+    k3 = estimar_constante_viscosa_terminal(df, masa_objeto)
+
+    v = df['Velocidad_Y_Teorico']
+    print("Calculando fuerza de rozamiento teorica utilizando la constante estimada con el metodo de la velocidad terminal")
+    df['Fuerza_Rozamiento_Y_Teorico'] = -k3 * v
     
 
 
@@ -481,11 +524,14 @@ def calcular_impulso_teorico(df, fps):
 def calcular_trabajo_experimental(df,fps):
     """Calcula el trabajo realizado por la fuerza de rozamiento experimental.
     El trabajo es la integral de la fuerza respecto al desplazamiento.
+    En este caso, se asume que el desplazamiento es la velocidad medida por el intervalo de tiempo. Se observo que los resultados
+    daban mejores al usar la velocidad medida en lugar de la posición.
     Parámetros:
         - df: DataFrame con la columna 'Fuerza_Rozamiento_Y'
         - fps: Frames por segundo del video"""
     fuerza = df['Fuerza_Rozamiento_Y'].values
-    desplazamientos = df['Y_metros'].diff().fillna(0).values
+    dt = 1.0 / fps
+    desplazamientos = df['Velocidad_Y'].values * dt
     trabajo = np.cumsum(fuerza * desplazamientos)
     df['Trabajo_Experimental'] = trabajo
     
@@ -497,7 +543,8 @@ def calcular_trabajo_teorico(df,fps):
         - df: DataFrame con la columna 'Fuerza_Rozamiento_Y_Teorico'
         - fps: Frames por segundo del video"""
     fuerza = df['Fuerza_Rozamiento_Y_Teorico'].values
-    desplazamientos = df['Y_metros'].diff().fillna(0).values
+    dt = 1.0 / fps
+    desplazamientos = df['Velocidad_Y_Teorico'].values * dt
     trabajo = np.cumsum(fuerza * desplazamientos)
     df['Trabajo_Teorico'] = trabajo
         
