@@ -90,7 +90,7 @@ def main():
             print("ENERGÍAS\n")
             print(f"Energía mecánica inicial: {energia_mecanica_inicial} J")
             print(f"Energía mecánica final aproximada: {energia_mecanica_final_aproximada} J")
-            print(f"Trabajo de la fuerza viscosa: {variacion_energia_mecanica} J")
+            print(f"Variacion de la energia mecanica ≈≈ Trabajo de la fuerza de rozamiento : {variacion_energia_mecanica} J")
             print(f"Energía cinética máxima: {energia_cinetica_maxima} J")
             print("--" * 40)
             print("IMPULSO\n")
