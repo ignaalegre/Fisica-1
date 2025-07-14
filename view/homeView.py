@@ -66,6 +66,7 @@ def main():
             tiempo_total = df['Frame'].iloc[-1] / 60
             trabajo_experimental = df['Trabajo_Experimental'].iloc[-1]
             trabajo_teorico = df['Trabajo_Teorico'].iloc[-1]
+            fiabilidad_trackeo = 100 * (1 - abs(trabajo_experimental - variacion_energia_mecanica) / abs(variacion_energia_mecanica))
             
             print(f"Datos del experimento: {seleccion}")
             print("--" * 40)
@@ -101,6 +102,9 @@ def main():
             print("TRABAJO\n")
             print(f"Trabajo experimental: {trabajo_experimental} J")
             print(f"Trabajo teórico: {trabajo_teorico} J")
+            print("--" * 40)
+            print(f"FIABILIDAD DEL TRACKEO\n")
+            print(f"Coincidencia entre variación de energía y trabajo experimental: {fiabilidad_trackeo:.2f}%")
             
             
 
